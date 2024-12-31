@@ -1,0 +1,21 @@
+[package]
+name = "odin_hackathon"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.95"
+clap = { version = "4.5.23", features = ["derive"] }
+reqwest = { version = "0.12.10", features = ["json"] }
+serde = { version = "1.0.216", features = ["derive"] }
+serde_derive = "1.0.216"
+tokio = { version = "1.42.0", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-log = "0.1"
+tracing-opentelemetry = "0.21"
+opentelemetry = { version = "0.20", features = ["rt-tokio"] }
+opentelemetry-jaeger = "0.19"
+sysinfo = "0.33.0"
+thiserror = "2.0.9"
+serde_json = "1.0.134"
