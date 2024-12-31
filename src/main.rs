@@ -7,7 +7,7 @@ use std::error::Error;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// URL to send the request to
-    #[arg(short, long, default_value = "http://localhost:11434/api/generate")]
+    #[arg(short, long, default_value = "http://ai-ollama:11434/api/generate")]
     url: String,
 
     /// Question to ask the model
