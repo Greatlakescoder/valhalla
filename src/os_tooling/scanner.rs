@@ -259,8 +259,8 @@ pub fn scan_running_proccess() -> anyhow::Result<Vec<OsProcessInformation>> {
     for (_, process) in sys.processes() {
         let formatted_process: OsProcessInformation = process.try_into().unwrap();
         // println!("{}",formatted_process.status);
-        if formatted_process.status == "Sleep" || formatted_process.status == "Dead" {
-            tracing::trace!("Ignoring process {}, its {}", formatted_process.name, formatted_process.status)
+        if formatted_process.status == "Sleep" || formatted_process.status == "Dead" || formatted_process.status == "Idle"  {
+            tracing::debug!("Ignoring process {}, its {}", formatted_process.name, formatted_process.status)
         }else {
             output.push(process.try_into().unwrap());
         }

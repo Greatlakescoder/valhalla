@@ -7,7 +7,7 @@ use std::error::Error;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// URL to send the request to
-    #[arg(short, long, default_value = "http://ai-ollama:11434/api/generate")]
+    #[arg(short, long, default_value = "http://ai-ollama.tail8c6aba.ts.net:11434/api/generate")]
     url: String,
 
     /// Question to ask the model
@@ -49,13 +49,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Start Chain of Though
 
     let initial_prompt = format!(
-        "Analyze this json blob of processes for potential security concerns. {} \
-        Give a brief assessment focused on obvious red flags.",
+        "Analyze this json blob of linux processes. I want you to focus your analysis  on the following things. \
+        1. Look to see if any of the processes could be a bad actor or virus
+        2. See if any of the processes are using too many resources.
+        3. See if any of the names could be a virus
+        Give a brief report of which proccesses you think could be bad actors
+        Json Blob = {} \
+    "
+    ,
         initial_prompt_input
     );
     let request_body = OllamaRequest {
-        model: "llama3.2".into(),
-        prompt: initial_prompt_input,
+        model: "llama3.2-vision:11b".into(),
+        prompt: initial_prompt,
         stream: false,
     };
 
@@ -63,7 +69,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Ok(resp) => OllamaResponse::from_response(resp)
             .await
             .expect("Failed to talk to Ollama"),
-        Err(_) => return Err("Failed to send to request".into()),
+        Err(err) => return Err(format!("Failed to send to request {err}").into()),
     };
 
     // let mut request = match args.method.to_uppercase().as_str() {
