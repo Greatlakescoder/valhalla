@@ -36,5 +36,10 @@ impl OllamaResponse {
 pub struct OllamaRequest {
     pub model: String,
     pub prompt: String,
-    pub stream: bool
+    pub stream: bool,
+    pub options: Options
+}
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Options {
+    pub num_ctx: u32
 }

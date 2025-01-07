@@ -1,5 +1,9 @@
 use clap::Parser;
-use odin_hackathon::{ollama::{OllamaRequest, OllamaResponse}, os_tooling::scan_running_proccess, telemetry::{get_subscriber, init_subscriber}};
+use odin_hackathon::{
+    ollama::{ create_system_prompt, OllamaRequest, OllamaResponse},
+    os_tooling::scan_running_proccess,
+    telemetry::{get_subscriber, init_subscriber},
+};
 use reqwest::Client;
 use std::error::Error;
 
@@ -7,7 +11,11 @@ use std::error::Error;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// URL to send the request to
-    #[arg(short, long, default_value = "http://ai-ollama.tail8c6aba.ts.net:11434/api/generate")]
+    #[arg(
+        short,
+        long,
+        default_value = "http://ai-ollama.tail8c6aba.ts.net:11434/api/generate"
+    )]
     url: String,
 
     /// Question to ask the model
@@ -17,15 +25,11 @@ struct Args {
 
 // Implementation to convert reqwest::Response into ApiResponse
 
-
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
     let client = Client::new();
-
-
 
     let subscriber = get_subscriber("odin".into(), "info".into(), std::io::stdout);
     init_subscriber(subscriber);
@@ -35,42 +39,60 @@ async fn main() -> Result<(), Box<dyn Error>> {
     tracing::info!("Collecting Running Proccesses");
     let results = scan_running_proccess()?;
 
-    let mut initial_prompt_input: String = String::from("");
+    
 
+    // Start Chain of Thought
 
-    for r in results {
-        match r.to_json_string() {
-            Ok(json) => initial_prompt_input.push_str(&r.to_json_string().unwrap()),
-            Err(e) => eprintln!("Failed to serialize: {}", e),
-        }
-    }
-  
+    // The amount of proccess on linux can be huge, we either need a way to filter them down or maybe have agent do it for us by only
+    // passing pids and names?
 
-    // Start Chain of Though
+    let system_prompt = create_system_prompt();
 
-    let initial_prompt = format!(
-        "Analyze this json blob of linux processes. I want you to focus your analysis  on the following things. \
-        1. Look to see if any of the processes could be a bad actor or virus
-        2. See if any of the processes are using too many resources.
-        3. See if any of the names could be a virus
-        Give a brief report of which proccesses you think could be bad actors
-        Json Blob = {} \
-    "
-    ,
-        initial_prompt_input
-    );
+    // Create a summary of system prompt
     let request_body = OllamaRequest {
-        model: "llama3.2-vision:11b".into(),
-        prompt: initial_prompt,
+        model: "mistral".into(),
+        prompt: system_prompt.clone(),
         stream: false,
+        options: { odin_hackathon::ollama::Options { num_ctx: 10000 } },
     };
+    // let resp = match client.post(&args.url).json(&request_body).send().await {
+    //     Ok(resp) => OllamaResponse::from_response(resp)
+    //         .await
+    //         .expect("Failed to talk to Ollama"),
+    //     Err(err) => return Err(format!("Failed to send to request {err}").into()),
+    // };
+    // tracing::info!("{}",resp.response);
 
-    let resp = match client.post(&args.url).json(&request_body).send().await {
-        Ok(resp) => OllamaResponse::from_response(resp)
-            .await
-            .expect("Failed to talk to Ollama"),
-        Err(err) => return Err(format!("Failed to send to request {err}").into()),
-    };
+    // Break it down in sets of 10
+    // We first want to send to a faster model for quick text analysis
+    for chunk in results.chunks(2) {
+        let mut initial_prompt_input: String = String::from("");
+        for r in chunk {
+            match r.to_json_string() {
+                Ok(json) => {
+                    tracing::debug!("{}", json);
+                    initial_prompt_input.push_str(&r.to_json_string().unwrap())
+                }
+                Err(e) => eprintln!("Failed to serialize: {}", e),
+            }
+        }
+        let initial_prompt = format!("{},{}", system_prompt, initial_prompt_input);
+
+        let request_body = OllamaRequest {
+            model: "mistral".into(),
+            prompt: initial_prompt,
+            stream: false,
+            options: { odin_hackathon::ollama::Options { num_ctx: 20000 } },
+        };
+        let resp = match client.post(&args.url).json(&request_body).send().await {
+            Ok(resp) => OllamaResponse::from_response(resp)
+                .await
+                .expect("Failed to talk to Ollama"),
+            Err(err) => return Err(format!("Failed to send to request {err}").into()),
+        };
+
+        println!("Response: {}", &resp.response);
+    }
 
     // let mut request = match args.method.to_uppercase().as_str() {
     //     "GET" => client.get(&args.url),
@@ -94,8 +116,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // }
 
     // Send request and get response
-
-    println!("Response: {}", resp.response);
 
     Ok(())
 }

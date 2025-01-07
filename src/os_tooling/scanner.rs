@@ -1,5 +1,5 @@
 use core::fmt;
-use std::ffi::OsString;
+use std::{arch::x86_64, collections::HashMap, ffi::OsString};
 
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +7,7 @@ use std::convert::TryFrom;
 use sysinfo::{CpuRefreshKind, Networks, ProcessRefreshKind, ProcessStatus, RefreshKind, System};
 use thiserror::Error;
 
-#[derive(Serialize, Deserialize,Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OsProcessInformation {
     pid: u32,
     cpu: f32,
@@ -17,6 +17,12 @@ pub struct OsProcessInformation {
     // exe: String,
     status: String,
     command: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AgentInput {
+    parent_process: OsProcessInformation,
+    forked_threads: Vec<OsProcessInformation>,
 }
 
 #[derive(Error, Debug)]
@@ -45,7 +51,6 @@ impl TryFrom<&sysinfo::Process> for OsProcessInformation {
     fn try_from(process: &sysinfo::Process) -> Result<Self, Self::Error> {
         let name = convert_os_string(process.name().into())
             .map_err(|_| ProcessConversionError::NameError)?;
-
 
         let cmd: Result<Vec<String>, _> = process
             .cmd()
@@ -247,27 +252,104 @@ impl OsProcessInformation {
     }
 }
 
+impl AgentInput {
+    // This can be useful when you want to handle JSON errors explicitly
+    pub fn to_json_string(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(self)
+    }
+}
+
+fn tag_process_as_high_cpu_usage() {
+
+}
+
+fn tag_process_as_high__memory_usage() {
+
+}
+
+fn tag_process_as_high_runtime_usage() {
+
+}
+
+fn tag_process_has_forked_processes() {
+
+}
 
 
-pub fn scan_running_proccess() -> anyhow::Result<Vec<OsProcessInformation>> {
-    let mut output: Vec<OsProcessInformation> = vec![];
+
+///
+/// I think in order to get the model to act how we want, we need to label things and send it to multiple agents
+/// We can implement this with a tagging methodolgy similar to how EC2 does it or how you would label data in a csv
+/// Tags Available to use
+/// - High CPU
+/// - High Memory
+/// - High Runtime
+/// - Has Forked/Spawned Processes
+/// We want to store this data in a lookup table so that we can do the post processing of the model out here
+/// instead of wasting context windows
+/// 
+
+
+// AgentMemoryBank
+// Holds the Memory of the agent so we can do a lookup for multi model approach
+pub struct AgentMemoryBank {
+    blocks: Vec<String>
+}
+
+pub fn scan_running_proccess() -> anyhow::Result<Vec<AgentInput>> {
+    let mut output: Vec<AgentInput> = vec![];
     let mut sys = System::new_all();
+
+    let mut agent_output: HashMap<u32, AgentInput> = HashMap::new();
 
     // First we update all information of our `System` struct.
     sys.refresh_specifics(RefreshKind::nothing().with_processes(ProcessRefreshKind::everything()));
 
     for (_, process) in sys.processes() {
         let formatted_process: OsProcessInformation = process.try_into().unwrap();
-        // println!("{}",formatted_process.status);
-        if formatted_process.status == "Sleep" || formatted_process.status == "Dead" || formatted_process.status == "Idle"  {
-            tracing::debug!("Ignoring process {}, its {}", formatted_process.name, formatted_process.status)
-        }else {
-            output.push(process.try_into().unwrap());
+
+        if formatted_process.status == "Dead"
+            || formatted_process.status == "Idle"
+        {
+            tracing::debug!(
+                "Ignoring process {}, its {}",
+                formatted_process.name,
+                formatted_process.status
+            )
+        } else {
+            // So part of the problem is we need to be able to track forked/spawned processes so the agent will know they are connected
+            // otherwise its going to think we have 16 clones of say a Tokio app
+            if process.parent().is_some() {
+                let lookup_key = &process.parent().unwrap().as_u32();
+                if agent_output.contains_key(lookup_key) {
+                    agent_output
+                        .entry(lookup_key.clone())
+                        .and_modify(|x| x.forked_threads.push(formatted_process.clone()))
+                        .or_insert(AgentInput {
+                            forked_threads: vec![],
+                            parent_process: formatted_process,
+                        });
+                } else {
+                    agent_output.insert(
+                        lookup_key.to_owned(),
+                        AgentInput {
+                            forked_threads: vec![],
+                            parent_process: formatted_process,
+                        },
+                    );
+                }
+            } else {
+                agent_output.insert(
+                    formatted_process.pid,
+                    AgentInput {
+                        forked_threads: vec![],
+                        parent_process: formatted_process,
+                    },
+                );
+            }
         }
-
-       
     }
-
-
+    // We need to use for each here since map does not consume the iter
+    agent_output.iter().for_each(|x| output.push(x.1.clone()));
     Ok(output)
 }
