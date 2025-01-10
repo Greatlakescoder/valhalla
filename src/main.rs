@@ -1,7 +1,6 @@
 use clap::Parser;
 use odin_hackathon::{
-    ollama::{ create_system_prompt, OllamaRequest, OllamaResponse},
-    os_tooling::scan_running_proccess,
+    ollama::{create_system_prompt, OllamaRequest, OllamaResponse},
     telemetry::{get_subscriber, init_subscriber},
 };
 use reqwest::Client;
@@ -36,25 +35,33 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     tracing::info!("Running Query");
 
-    tracing::info!("Collecting Running Proccesses");
-    let results = scan_running_proccess()?;
+    // tracing::info!("Collecting Running Proccesses");
+    // let results = scan_running_proccess()?;
 
-    
+    // for r in results {
+    //     match r.to_json_string() {
+    //         Ok(json) => {
+    //             tracing::info!("{}", json);
+    //         }
+    //         Err(e) => eprintln!("Failed to serialize: {}", e),
+    //     }
+    // }
 
     // Start Chain of Thought
 
     // The amount of proccess on linux can be huge, we either need a way to filter them down or maybe have agent do it for us by only
     // passing pids and names?
 
-    let system_prompt = create_system_prompt();
+    // let system_prompt = create_system_prompt();
 
     // Create a summary of system prompt
-    let request_body = OllamaRequest {
-        model: "mistral".into(),
-        prompt: system_prompt.clone(),
-        stream: false,
-        options: { odin_hackathon::ollama::Options { num_ctx: 10000 } },
-    };
+    //TODO We are not ready for the model work yet, need better data
+    // let request_body = OllamaRequest {
+    //     model: "mistral".into(),
+    //     prompt: system_prompt.clone(),
+    //     stream: false,
+    //     options: { odin_hackathon::ollama::Options { num_ctx: 10000 } },
+    // };
     // let resp = match client.post(&args.url).json(&request_body).send().await {
     //     Ok(resp) => OllamaResponse::from_response(resp)
     //         .await
@@ -65,34 +72,34 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Break it down in sets of 10
     // We first want to send to a faster model for quick text analysis
-    for chunk in results.chunks(2) {
-        let mut initial_prompt_input: String = String::from("");
-        for r in chunk {
-            match r.to_json_string() {
-                Ok(json) => {
-                    tracing::debug!("{}", json);
-                    initial_prompt_input.push_str(&r.to_json_string().unwrap())
-                }
-                Err(e) => eprintln!("Failed to serialize: {}", e),
-            }
-        }
-        let initial_prompt = format!("{},{}", system_prompt, initial_prompt_input);
+    // for chunk in results.chunks(2) {
+    //     let mut initial_prompt_input: String = String::from("");
+    //     for r in chunk {
+    //         match r.to_json_string() {
+    //             Ok(json) => {
+    //                 tracing::debug!("{}", json);
+    //                 initial_prompt_input.push_str(&r.to_json_string().unwrap())
+    //             }
+    //             Err(e) => eprintln!("Failed to serialize: {}", e),
+    //         }
+    //     }
+    //     let initial_prompt = format!("{},{}", system_prompt, initial_prompt_input);
 
-        let request_body = OllamaRequest {
-            model: "mistral".into(),
-            prompt: initial_prompt,
-            stream: false,
-            options: { odin_hackathon::ollama::Options { num_ctx: 20000 } },
-        };
-        let resp = match client.post(&args.url).json(&request_body).send().await {
-            Ok(resp) => OllamaResponse::from_response(resp)
-                .await
-                .expect("Failed to talk to Ollama"),
-            Err(err) => return Err(format!("Failed to send to request {err}").into()),
-        };
+    //     let request_body = OllamaRequest {
+    //         model: "mistral".into(),
+    //         prompt: initial_prompt,
+    //         stream: false,
+    //         options: { odin_hackathon::ollama::Options { num_ctx: 20000 } },
+    //     };
+    //     let resp = match client.post(&args.url).json(&request_body).send().await {
+    //         Ok(resp) => OllamaResponse::from_response(resp)
+    //             .await
+    //             .expect("Failed to talk to Ollama"),
+    //         Err(err) => return Err(format!("Failed to send to request {err}").into()),
+    //     };
 
-        println!("Response: {}", &resp.response);
-    }
+    //     println!("Response: {}", &resp.response);
+    // }
 
     // let mut request = match args.method.to_uppercase().as_str() {
     //     "GET" => client.get(&args.url),
