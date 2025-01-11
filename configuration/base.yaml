@@ -1,3 +1,2 @@
 scanner:
-  prefix: Odin
-  parent_pid:
+  prefix: "Odin"

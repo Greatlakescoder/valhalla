@@ -4,7 +4,7 @@ use std::{arch::x86_64, collections::HashMap, ffi::OsString};
 use serde::{Deserialize, Serialize};
 
 use std::convert::TryFrom;
-use sysinfo::{CpuRefreshKind, Networks, ProcessRefreshKind, ProcessStatus, RefreshKind, System};
+use sysinfo::{CpuRefreshKind, Networks, Pid, ProcessRefreshKind, ProcessStatus, RefreshKind, System};
 use thiserror::Error;
 
 use crate::configuration::{get_configuration, ScannerSettings};
@@ -340,15 +340,15 @@ pub struct SystemFilter {
 }
 
 impl SystemScanner {
-    pub fn build(configuration: &ScannerSettings) -> Result<Self, std::io::Error> {
+    pub fn build(configuration: &ScannerSettings) -> Self {
         let process_name_filter = configuration.prefix.clone();
         let process_parent_filter = configuration.parent_pid;
-        Ok(Self {
+        Self {
             filter: SystemFilter {
                 process_name_filter,
                 process_parent_filter,
             },
-        })
+        }
     }
 
     pub fn scan_running_proccess(self) -> anyhow::Result<Vec<AgentInput>> {
@@ -369,9 +369,6 @@ impl SystemScanner {
                 // So part of the problem is we need to be able to track forked/spawned processes so the agent will know they are connected
                 // otherwise its going to think we have 16 clones of say a Tokio app
                 if process.parent().is_some() {
-                    if !is_valid_process_name(&formatted_process, &self.filter) {
-                        continue;
-                    }
                     let lookup_key = &process.parent().unwrap().as_u32();
                     if agent_output.contains_key(lookup_key) {
                         agent_output
@@ -382,18 +379,21 @@ impl SystemScanner {
                                 parent_process: formatted_process,
                             });
                     } else {
-                        agent_output.insert(
-                            lookup_key.to_owned(),
-                            AgentInput {
-                                forked_threads: vec![],
-                                parent_process: formatted_process,
-                            },
-                        );
+                        // If we are adding for first time we need to find the parent process
+                        if let Some(parent_process) = sys.process(Pid::from(lookup_key.clone() as usize)) {
+                            let formatted_process: OsProcessInformation = parent_process.try_into().unwrap();
+                            agent_output.insert(
+                                lookup_key.to_owned(),
+                                AgentInput {
+                                    forked_threads: vec![],
+                                    parent_process: formatted_process,
+                                },
+                            );
+                        }else {
+                            continue;
+                        }
                     }
                 } else {
-                    if !is_valid_process_pid(&formatted_process, &self.filter) {
-                        continue;
-                    }
                     agent_output.insert(
                         formatted_process.pid,
                         AgentInput {

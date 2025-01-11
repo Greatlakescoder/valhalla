@@ -7,16 +7,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in library 'odin_hackathon'",
+            "name": "Debug unit tests in library 'odin'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=odin_hackathon"
+                    "--package=odin"
                 ],
                 "filter": {
-                    "name": "odin_hackathon",
+                    "name": "odin",
                     "kind": "lib"
                 }
             },
@@ -26,15 +26,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'odin_hackathon'",
+            "name": "Debug executable 'odin'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=odin_hackathon",
-                    "--package=odin_hackathon"
+                    "--bin=odin",
+                    "--package=odin"
                 ],
                 "filter": {
-                    "name": "odin_hackathon",
+                    "name": "odin",
                     "kind": "bin"
                 }
             },
@@ -44,16 +44,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'odin_hackathon'",
+            "name": "Debug unit tests in executable 'odin'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=odin_hackathon",
-                    "--package=odin_hackathon"
+                    "--bin=odin",
+                    "--package=odin"
                 ],
                 "filter": {
-                    "name": "odin_hackathon",
+                    "name": "odin",
                     "kind": "bin"
                 }
             },

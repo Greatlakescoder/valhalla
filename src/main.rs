@@ -1,7 +1,6 @@
 use clap::Parser;
-use odin_hackathon::{
-    ollama::{create_system_prompt, OllamaRequest, OllamaResponse},
-    telemetry::{get_subscriber, init_subscriber},
+use odin::{
+    configuration::get_configuration, ollama::{create_system_prompt, OllamaRequest, OllamaResponse}, os_tooling::SystemScanner, telemetry::{get_subscriber, init_subscriber}
 };
 use reqwest::Client;
 use std::error::Error;
@@ -35,17 +34,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     tracing::info!("Running Query");
 
-    // tracing::info!("Collecting Running Proccesses");
-    // let results = scan_running_proccess()?;
+    tracing::info!("Collecting Running Proccesses");
+    let config = get_configuration().expect("Failed to read configuration.");
+    let scanner = SystemScanner::build(&config.scanner);
+    let results = scanner.scan_running_proccess()?;
 
-    // for r in results {
-    //     match r.to_json_string() {
-    //         Ok(json) => {
-    //             tracing::info!("{}", json);
-    //         }
-    //         Err(e) => eprintln!("Failed to serialize: {}", e),
-    //     }
-    // }
+    for r in results {
+        match r.to_json_string() {
+            Ok(json) => {
+                tracing::info!("{}", json);
+            }
+            Err(e) => eprintln!("Failed to serialize: {}", e),
+        }
+    }
 
     // Start Chain of Thought
 

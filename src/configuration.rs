@@ -1,4 +1,8 @@
 
+#[derive(serde::Deserialize,Clone)]
+pub struct Settings {
+    pub scanner: ScannerSettings
+}
 
 
 #[derive(serde::Deserialize,Clone)]
@@ -7,7 +11,7 @@ pub struct ScannerSettings {
     pub parent_pid: Option<u32>
 }
 
-pub fn get_configuration() -> Result<ScannerSettings, config::ConfigError> {
+pub fn get_configuration() -> Result<Settings, config::ConfigError> {
     let base_path = std::env::current_dir().expect("Failed to determine current directory");
 
     let configuration_directory = base_path.join("configuration");
@@ -33,7 +37,7 @@ pub fn get_configuration() -> Result<ScannerSettings, config::ConfigError> {
         )
         .build()?;
     // Try to convert our config file into our struct
-    settings.try_deserialize::<ScannerSettings>()
+    settings.try_deserialize::<Settings>()
 }
 
 pub enum Environment {
