@@ -1,6 +1,6 @@
 use clap::Parser;
 use odin::{
-    configuration::get_configuration, ollama::{create_system_prompt, OllamaRequest, OllamaResponse}, os_tooling::SystemScanner, telemetry::{get_subscriber, init_subscriber}
+    configuration::get_configuration, os_tooling::SystemScanner, telemetry::{get_subscriber, init_subscriber}
 };
 use reqwest::Client;
 use std::error::Error;

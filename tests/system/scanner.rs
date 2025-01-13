@@ -1,7 +1,6 @@
 // tests/scanner_test.rs
-use crate::helpers::{TestEnvironment, TestProcess, TestProcessType};
+use crate::helpers::TestEnvironment;
 use odin::{configuration::get_configuration, os_tooling::SystemScanner};
-use sysinfo::System;
 
 #[test]
 fn test_process_scanning() {

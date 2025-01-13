@@ -1,13 +1,13 @@
 use core::fmt;
-use std::{arch::x86_64, collections::HashMap, ffi::OsString};
+use std::{collections::HashMap, ffi::OsString};
 
 use serde::{Deserialize, Serialize};
 
 use std::convert::TryFrom;
-use sysinfo::{CpuRefreshKind, Networks, Pid, ProcessRefreshKind, ProcessStatus, RefreshKind, System};
+use sysinfo::{CpuRefreshKind, Networks, Pid, ProcessRefreshKind, RefreshKind, System};
 use thiserror::Error;
 
-use crate::configuration::{get_configuration, ScannerSettings};
+use crate::configuration::ScannerSettings;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OsProcessInformation {
@@ -136,12 +136,12 @@ pub fn get_system_memory() -> SystemMemory {
     let mut sys = System::new_all();
 
     sys.refresh_all();
-    return SystemMemory {
+    SystemMemory {
         total_memory: sys.total_memory() / 1024 / 1024,
         used_memory: sys.used_memory() / 1024 / 1024,
         total_swap: sys.total_swap() / 1024 / 1024,
         used_swap: sys.used_swap() / 1024 / 1024,
-    };
+    }
 }
 
 // pub fn get_system_information() -> anyhow::Result<SystemInformation> {
@@ -275,41 +275,33 @@ pub fn is_process_alive(process: &OsProcessInformation) -> bool {
         tracing::debug!("Ignoring process {}, its {}", process.name, process.status);
         return false;
     }
-    return true;
+    true
 }
 
 pub fn is_valid_process_name(process: &OsProcessInformation, filter: &SystemFilter) -> bool {
     // TODO we should also put these in the config
 
-    let is_valid_name = match &filter.process_name_filter {
+    
+
+    match &filter.process_name_filter {
         Some(filter) => {
-            if process.name.contains(filter) {
-                true
-            } else {
-                false
-            }
+            process.name.contains(filter)
         }
         None => true,
-    };
-
-    return is_valid_name;
+    }
 }
 
 pub fn is_valid_process_pid(process: &OsProcessInformation, filter: &SystemFilter) -> bool {
     // TODO we should also put these in the config
 
-    let is_valid_pid = match filter.process_parent_filter {
+    
+
+    match filter.process_parent_filter {
         Some(filter) => {
-            if process.pid == filter {
-                true
-            } else {
-                false
-            }
+            process.pid == filter
         }
         None => true,
-    };
-
-    return is_valid_pid;
+    }
 }
 
 ///
@@ -361,7 +353,7 @@ impl SystemScanner {
             RefreshKind::nothing().with_processes(ProcessRefreshKind::everything().without_cwd().without_environ().with_disk_usage()),
         );
 
-        for (_, process) in sys.processes() {
+        for process in sys.processes().values() {
             let formatted_process: OsProcessInformation = process.try_into().unwrap();
             if !is_process_alive(&formatted_process) {
                 continue;
@@ -372,7 +364,7 @@ impl SystemScanner {
                     let lookup_key = &process.parent().unwrap().as_u32();
                     if agent_output.contains_key(lookup_key) {
                         agent_output
-                            .entry(lookup_key.clone())
+                            .entry(*lookup_key)
                             .and_modify(|x| x.forked_threads.push(formatted_process.clone()))
                             .or_insert(AgentInput {
                                 forked_threads: vec![],
@@ -380,7 +372,7 @@ impl SystemScanner {
                             });
                     } else {
                         // If we are adding for first time we need to find the parent process
-                        if let Some(parent_process) = sys.process(Pid::from(lookup_key.clone() as usize)) {
+                        if let Some(parent_process) = sys.process(Pid::from(*lookup_key as usize)) {
                             let formatted_parent_process: OsProcessInformation = parent_process.try_into().unwrap();
                             agent_output.insert(
                                 lookup_key.to_owned(),

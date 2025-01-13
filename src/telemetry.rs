@@ -1,7 +1,7 @@
 use tracing::subscriber::set_global_default;
 use tracing::Subscriber;
 use tracing_log::LogTracer;
-use tracing_subscriber::fmt::{self, Layer, MakeWriter};
+use tracing_subscriber::fmt::{self, MakeWriter};
 use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 use opentelemetry::sdk::trace::Config;
 

@@ -98,7 +98,7 @@
 
 
 pub fn create_system_prompt() -> String {
-    return String::from(
+    String::from(
         "Act as a process security monitor. ONLY output JSON in this format:
         {
             \"suspicious_processes\": [
@@ -114,7 +114,7 @@ pub fn create_system_prompt() -> String {
         Flag if: CPU >80%, unusual memory, mismatched parent-child, or malicious patterns.
         Return empty array if nothing suspicious.
         DO NOT explain, suggest code, or add commentary. JSON output only."
-    );
+    )
 }
 // pub fn create_summary_system_prompt() -> String {
 //     return format!(

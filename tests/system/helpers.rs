@@ -1,6 +1,4 @@
 // tests/helper.rs
-use std::env;
-use std::os::unix::process;
 use std::process::{Child, Command};
 use std::thread;
 use std::time::Duration;
@@ -52,7 +50,7 @@ impl TestProcess {
 
 impl Drop for TestProcess {
     fn drop(&mut self) {
-        let _ = self.child.kill().expect("Process could not be killed");
+        self.child.kill().expect("Process could not be killed");
         println!("{} has been killed",self.pid())
     }
 }
