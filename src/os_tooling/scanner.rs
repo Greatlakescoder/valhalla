@@ -11,20 +11,20 @@ use crate::configuration::{get_configuration, ScannerSettings};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OsProcessInformation {
-    pid: u32,
-    cpu: f32,
+    pub pid: u32,
+    pub cpu: f32,
     mem: u64,
     start_time: u64,
-    name: String,
+    pub name: String,
     // exe: String,
     status: String,
-    command: Vec<String>,
+    pub command: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AgentInput {
-    parent_process: OsProcessInformation,
-    forked_threads: Vec<OsProcessInformation>,
+    pub parent_process: OsProcessInformation,
+    pub forked_threads: Vec<OsProcessInformation>,
 }
 
 #[derive(Error, Debug)]
@@ -358,7 +358,7 @@ impl SystemScanner {
 
         // First we update all information of our `System` struct.
         sys.refresh_specifics(
-            RefreshKind::nothing().with_processes(ProcessRefreshKind::everything()),
+            RefreshKind::nothing().with_processes(ProcessRefreshKind::everything().without_cwd().without_environ().with_disk_usage()),
         );
 
         for (_, process) in sys.processes() {
@@ -381,12 +381,12 @@ impl SystemScanner {
                     } else {
                         // If we are adding for first time we need to find the parent process
                         if let Some(parent_process) = sys.process(Pid::from(lookup_key.clone() as usize)) {
-                            let formatted_process: OsProcessInformation = parent_process.try_into().unwrap();
+                            let formatted_parent_process: OsProcessInformation = parent_process.try_into().unwrap();
                             agent_output.insert(
                                 lookup_key.to_owned(),
                                 AgentInput {
-                                    forked_threads: vec![],
-                                    parent_process: formatted_process,
+                                    forked_threads: vec![formatted_process],
+                                    parent_process: formatted_parent_process,
                                 },
                             );
                         }else {

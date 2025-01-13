@@ -1,5 +1,6 @@
 // tests/helper.rs
 use std::env;
+use std::os::unix::process;
 use std::process::{Child, Command};
 use std::thread;
 use std::time::Duration;
@@ -24,9 +25,8 @@ impl TestProcess {
                 .arg("-c")
                 .arg(format!("echo '{}' && echo", prefix + "idle"))
                 .spawn(),
-            TestProcessType::Sleep => Command::new("sh")
-                .arg("-c")
-                .arg(format!("echo '{}' && sleep 3600", prefix + "sleep"))
+            TestProcessType::Sleep => Command::new("sleep")
+                .arg("3600")
                 .spawn(),
             TestProcessType::Active => Command::new("sh")
                 .arg("-c")
@@ -48,14 +48,12 @@ impl TestProcess {
         self.child.id()
     }
 
-    pub fn process_type(&self) -> &TestProcessType {
-        &self.process_type
-    }
 }
 
 impl Drop for TestProcess {
     fn drop(&mut self) {
-        let _ = self.child.kill();
+        let _ = self.child.kill().expect("Process could not be killed");
+        println!("{} has been killed",self.pid())
     }
 }
 
@@ -81,14 +79,6 @@ impl TestEnvironment {
             process_prefix,
             processes,
         }
-    }
-
-    pub fn get_process_ids(&self) -> Vec<u32> {
-        self.processes.iter().map(|p| p.pid()).collect()
-    }
-
-    pub fn get_parent_id(&self) -> Vec<u32> {
-        self.processes.iter().map(|p| p.pid()).collect()
     }
 }
 
