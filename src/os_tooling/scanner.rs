@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{collections::HashMap, ffi::OsString};
+use std::{collections::HashMap, default, ffi::OsString};
 
 use serde::{Deserialize, Serialize};
 
@@ -19,6 +19,7 @@ pub struct OsProcessInformation {
     // exe: String,
     status: String,
     pub command: Vec<String>,
+    pub user_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -59,11 +60,24 @@ impl TryFrom<&sysinfo::Process> for OsProcessInformation {
             .iter()
             .map(|os_str| convert_os_string(os_str.clone()))
             .collect();
+        let user_id = process
+            .effective_user_id()
+            .map(|u| u.to_string())
+            .unwrap_or_else(String::new);
+
+        // if let Some(tasks) = process.tasks() {
+        //     println!("Listing tasks for process {:?}", process.pid());
+        //     for task_pid in tasks {
+        //         println!("Task {:?}", task_pid);
+        //     }
+        // }
+
         Ok(Self {
             pid: process.pid().as_u32(),
             // You could make this fallible if needed
             name,
             command: cmd?,
+            user_id: user_id,
             // exe: process
             //     .exe()
             //     .map(|p| p.to_string_lossy().to_string())
@@ -117,21 +131,6 @@ impl fmt::Display for SystemInformation {
     }
 }
 
-// impl fmt::Display for JoltOutput {
-//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-//         write!(
-//             f,
-//             "Effective User Id {} \n
-//             Process Id {} \n
-//             Cpu Usage {} \n
-//             Memory Usage {} \n
-//             Cumulative CPU Time {} \n
-//             Command {} \n",
-//             self.user, self.pid, self.cpu, self.mem, self.time, self.command
-//         )
-//     }
-// }
-
 pub fn get_system_memory() -> SystemMemory {
     let mut sys = System::new_all();
 
@@ -143,20 +142,6 @@ pub fn get_system_memory() -> SystemMemory {
         used_swap: sys.used_swap() / 1024 / 1024,
     }
 }
-
-// pub fn get_system_information() -> anyhow::Result<SystemInformation> {
-//     let mut sys = System::new_all();
-//     sys.refresh_all();
-//     Ok(SystemInformation {
-//         cpu_arch: psutil::host::info().architecture().to_string(),
-//         host_name: psutil::host::info().hostname().to_string(),
-//         os_version: psutil::host::info().operating_system().to_string(),
-//         name: System::name().unwrap(),
-//         uptime: psutil::host::uptime().unwrap().as_secs(),
-//         total_cpus: psutil::cpu::cpu_count(),
-//         total_memory: psutil::memory::virtual_memory().unwrap().available(),
-//     })
-// }
 
 pub fn get_network_information() {
     let mut sys = System::new_all();
@@ -178,14 +163,6 @@ pub fn get_network_information() {
         );
     }
 }
-
-// pub fn kill_process(pid: u32) -> anyhow::Result<()> {
-//     let current_process = psutil::process::Process::new(pid)?;
-//     if current_process.is_running() {
-//         current_process.kill()?;
-//     }
-//     Ok(())
-// }
 
 #[derive(Serialize, Deserialize)]
 pub struct CpuUsageResponse {
@@ -261,13 +238,55 @@ impl AgentInput {
     }
 }
 
-fn tag_process_as_high_cpu_usage() {}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TaggedProccess {
+    #[serde(skip_serializing)]
+    pub agent_input: AgentInput,
+    pub process_name: String,
+    pub is_high_cpu: bool,
+    pub is_high_mem: bool,
+    pub is_forking: bool,
+}
 
-fn tag_process_as_high__memory_usage() {}
+impl TaggedProccess {
+    pub fn new(agent_input: AgentInput) -> Self {
+        Self {
+            agent_input: agent_input.clone(),
+            process_name: agent_input.parent_process.name,
+            is_high_cpu: false,
+            is_high_mem: false,
+            is_forking: false,
+        }
+    }
 
-fn tag_process_as_high_runtime_usage() {}
+    pub fn tag(&mut self) {
+        self.has_high_cpu_usage();
+        self.has_high__memory_usage();
+        self.has_forked_processes();
+    }
 
-fn tag_process_has_forked_processes() {}
+    fn has_high_cpu_usage(&mut self) {
+        if self.agent_input.parent_process.cpu > 60.0 {
+            self.is_high_cpu = true
+        }
+    }
+
+    fn has_high__memory_usage(&mut self) {
+        if self.agent_input.parent_process.mem > 60 {
+            self.is_high_mem = true
+        }
+    }
+
+    fn has_forked_processes(&mut self) {
+        if self.agent_input.forked_threads.len() > 0 {
+            self.is_forking = true
+        }
+    }
+
+    pub fn to_json_string(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(self)
+    }
+}
 
 pub fn is_process_alive(process: &OsProcessInformation) -> bool {
     // TODO we should also put these in the config
@@ -281,12 +300,8 @@ pub fn is_process_alive(process: &OsProcessInformation) -> bool {
 pub fn is_valid_process_name(process: &OsProcessInformation, filter: &SystemFilter) -> bool {
     // TODO we should also put these in the config
 
-    
-
     match &filter.process_name_filter {
-        Some(filter) => {
-            process.name.contains(filter)
-        }
+        Some(filter) => process.name.contains(filter),
         None => true,
     }
 }
@@ -294,12 +309,8 @@ pub fn is_valid_process_name(process: &OsProcessInformation, filter: &SystemFilt
 pub fn is_valid_process_pid(process: &OsProcessInformation, filter: &SystemFilter) -> bool {
     // TODO we should also put these in the config
 
-    
-
     match filter.process_parent_filter {
-        Some(filter) => {
-            process.pid == filter
-        }
+        Some(filter) => process.pid == filter,
         None => true,
     }
 }
@@ -343,14 +354,24 @@ impl SystemScanner {
         }
     }
 
-    pub fn scan_running_proccess(self) -> anyhow::Result<Vec<AgentInput>> {
+    pub fn tag_proccesses(&self, system_proccesses: Vec<AgentInput>) -> Vec<TaggedProccess> {
+        let mut tagged_proccesses: Vec<TaggedProccess> = vec![];
+        for p in system_proccesses {
+            let mut tagged_proccess = TaggedProccess::new(p);
+            tagged_proccess.tag();
+            tagged_proccesses.push(tagged_proccess);
+        }
+        return tagged_proccesses;
+    }
+
+    pub fn scan_running_proccess(&self) -> anyhow::Result<Vec<AgentInput>> {
         let mut output: Vec<AgentInput> = vec![];
         let mut sys = System::new_all();
         let mut agent_output: HashMap<u32, AgentInput> = HashMap::new();
 
         // First we update all information of our `System` struct.
         sys.refresh_specifics(
-            RefreshKind::nothing().with_processes(ProcessRefreshKind::everything().without_cwd().without_environ().with_disk_usage()),
+            RefreshKind::nothing().with_processes(ProcessRefreshKind::everything()),
         );
 
         for process in sys.processes().values() {
@@ -373,7 +394,8 @@ impl SystemScanner {
                     } else {
                         // If we are adding for first time we need to find the parent process
                         if let Some(parent_process) = sys.process(Pid::from(*lookup_key as usize)) {
-                            let formatted_parent_process: OsProcessInformation = parent_process.try_into().unwrap();
+                            let formatted_parent_process: OsProcessInformation =
+                                parent_process.try_into().unwrap();
                             agent_output.insert(
                                 lookup_key.to_owned(),
                                 AgentInput {
@@ -381,18 +403,21 @@ impl SystemScanner {
                                     parent_process: formatted_parent_process,
                                 },
                             );
-                        }else {
+                        } else {
                             continue;
                         }
                     }
                 } else {
-                    agent_output.insert(
-                        formatted_process.pid,
-                        AgentInput {
-                            forked_threads: vec![],
-                            parent_process: formatted_process,
-                        },
-                    );
+                    // If we dont have this proccess from previous grouping of parent-child, add it
+                    if !agent_output.contains_key(&formatted_process.pid) {
+                        agent_output.insert(
+                            formatted_process.pid,
+                            AgentInput {
+                                forked_threads: vec![],
+                                parent_process: formatted_process,
+                            },
+                        );
+                    }
                 }
             }
         }

@@ -3,7 +3,8 @@ use odin::{
     configuration::get_configuration, os_tooling::SystemScanner, telemetry::{get_subscriber, init_subscriber}
 };
 use reqwest::Client;
-use std::error::Error;
+use serde::Serialize;
+use std::{error::Error, fs::File, io::BufWriter, path::Path};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -19,6 +20,20 @@ struct Args {
     /// Question to ask the model
     #[arg(short, long, default_value = "What is the origin of the name wesley")]
     query: String,
+}
+
+pub fn write_to_json<T: Serialize, P: AsRef<Path>>(
+    data: &T,
+    path: P,
+) -> std::io::Result<()> {
+    // Create file and wrap in buffered writer
+    let file = File::create(path)?;
+    let writer = BufWriter::new(file);
+
+    // Serialize and write data
+    serde_json::to_writer_pretty(writer, data)?;
+
+    Ok(())
 }
 
 // Implementation to convert reqwest::Response into ApiResponse
@@ -38,8 +53,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let config = get_configuration().expect("Failed to read configuration.");
     let scanner = SystemScanner::build(&config.scanner);
     let results = scanner.scan_running_proccess()?;
+    let tagged_results = scanner.tag_proccesses(results);
+    write_to_json(&tagged_results,"/home/fiz/workbench/valhalla/data/output.json")?;
 
-    for r in results {
+    for r in tagged_results {
         match r.to_json_string() {
             Ok(json) => {
                 tracing::info!("{}", json);

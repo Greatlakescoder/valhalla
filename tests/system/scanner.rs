@@ -19,10 +19,6 @@ fn test_process_scanning() {
     let test_runner_pid = std::process::id();
     for p in processes_found {
         if p.parent_process.pid == test_runner_pid {
-            println!("PID {}", p.parent_process.pid);
-            for ft in &p.forked_threads {
-                println!("{} - {} - {:?}", ft.pid, ft.name, ft.command)
-            }
             // Four forked threads 
             // One is this function since cargo isolate tests in own thread
             // Three for the spawned proccesses in Test Env
