@@ -12,13 +12,19 @@ use crate::configuration::ScannerSettings;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OsProcessInformation {
     pub pid: u32,
+    #[serde(skip_serializing)]
     pub cpu: f32,
-    mem: u64,
-    start_time: u64,
+    #[serde(skip_serializing)]
+    pub memory_usage: u64,
+    #[serde(skip_serializing)]
+    pub run_time: u64,
     pub name: String,
     // exe: String,
+    #[serde(skip_serializing)]
     status: String,
+    #[serde(skip_serializing)]
     pub command: Vec<String>,
+    #[serde(skip_serializing)]
     pub user_id: String,
 }
 
@@ -65,26 +71,16 @@ impl TryFrom<&sysinfo::Process> for OsProcessInformation {
             .map(|u| u.to_string())
             .unwrap_or_else(String::new);
 
-        // if let Some(tasks) = process.tasks() {
-        //     println!("Listing tasks for process {:?}", process.pid());
-        //     for task_pid in tasks {
-        //         println!("Task {:?}", task_pid);
-        //     }
-        // }
-
         Ok(Self {
             pid: process.pid().as_u32(),
             // You could make this fallible if needed
             name,
             command: cmd?,
             user_id: user_id,
-            // exe: process
-            //     .exe()
-            //     .map(|p| p.to_string_lossy().to_string())
-            //     .expect("Failed to unwrap exe"),
             cpu: process.cpu_usage(),
-            mem: process.memory(),
-            start_time: process.start_time(),
+            // Convert bytes to MB
+            memory_usage: process.memory() / (1024 * 1024) ,
+            run_time: process.run_time(),
             status: format!("{:?}", process.status()),
         })
     }
@@ -240,29 +236,29 @@ impl AgentInput {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TaggedProccess {
-    #[serde(skip_serializing)]
     pub agent_input: AgentInput,
-    pub process_name: String,
     pub is_high_cpu: bool,
     pub is_high_mem: bool,
     pub is_forking: bool,
+    pub is_long_run_time: bool
 }
 
 impl TaggedProccess {
     pub fn new(agent_input: AgentInput) -> Self {
         Self {
             agent_input: agent_input.clone(),
-            process_name: agent_input.parent_process.name,
             is_high_cpu: false,
             is_high_mem: false,
+            is_long_run_time: false,
             is_forking: false,
         }
     }
 
     pub fn tag(&mut self) {
         self.has_high_cpu_usage();
-        self.has_high__memory_usage();
+        self.has_high_memory_usage();
         self.has_forked_processes();
+        self.has_long_runtime();
     }
 
     fn has_high_cpu_usage(&mut self) {
@@ -271,9 +267,15 @@ impl TaggedProccess {
         }
     }
 
-    fn has_high__memory_usage(&mut self) {
-        if self.agent_input.parent_process.mem > 60 {
+    fn has_high_memory_usage(&mut self) {
+        if self.agent_input.parent_process.memory_usage > 250 {
             self.is_high_mem = true
+        }
+    }
+
+    fn has_long_runtime(&mut self) {
+        if self.agent_input.parent_process.run_time > 7200 {
+            self.is_long_run_time = true
         }
     }
 
@@ -327,11 +329,6 @@ pub fn is_valid_process_pid(process: &OsProcessInformation, filter: &SystemFilte
 /// instead of wasting context windows
 ///
 
-// AgentMemoryBank
-// Holds the Memory of the agent so we can do a lookup for multi model approach
-pub struct AgentMemoryBank {
-    blocks: Vec<String>,
-}
 
 pub struct SystemScanner {
     filter: SystemFilter,
