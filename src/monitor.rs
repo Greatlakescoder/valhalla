@@ -33,8 +33,16 @@ impl SystemMonitor {
     fn call_ollama(&self, system_info: Vec<TaggedProccess>) {
         // Start Chain of Thought
 
-        // The amount of proccess on linux can be huge, we either need a way to filter them down or maybe have agent do it for us by only
-        // passing pids and names?
+        // Phase 1 
+            // Collect all the names of the parent proccesses and create list
+            // Send to agent to determine which ones are safe
+        // Phase 2
+            // Parse response of agent and apply metadata tags to proccesses that come back to add 
+            // more context
+            // metadata includes forked proccesses names
+            // resource usage
+        // Phase 3 
+            // Generate report
 
         let system_prompt = create_system_prompt();
 
