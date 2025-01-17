@@ -36,7 +36,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     tracing::info!("Collecting Running Proccesses");
     let settings = get_configuration().expect("Failed to read configuration.");
     let monitor = SystemMonitor::new(settings);
-    let _ = monitor.run();
+    let _ = monitor.run().await;
 
     Ok(())
 }

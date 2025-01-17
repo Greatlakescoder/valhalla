@@ -1,10 +1,14 @@
 use crate::{
     configuration::Settings,
-    ollama::{create_system_prompt, OllamaClient, OllamaRequest},
+    ollama::{
+        create_system_prompt, create_system_prompt_name_verifier, OllamaClient, OllamaNameInput,
+        OllamaRequest, OllamaResponse,
+    },
     os_tooling::{SystemScanner, TaggedProccess},
     utils::write_to_json,
 };
 use anyhow::Result;
+use serde_json::json;
 pub struct SystemMonitor {
     ollama_client: OllamaClient,
 }
@@ -30,21 +34,49 @@ impl SystemMonitor {
         Ok(tagged_results)
     }
 
+    async fn call_ollama_name_verification(
+        &self,
+        system_info: Vec<TaggedProccess>,
+    ) -> Result<OllamaResponse> {
+        let system_prompt = create_system_prompt_name_verifier();
+
+        // Need to get just a list of names
+        let names: Vec<OllamaNameInput> = system_info
+            .into_iter()
+            .map(|input| OllamaNameInput {
+                pid: input.agent_input.parent_process.pid,
+                name: input.agent_input.parent_process.name,
+            })
+            .collect();
+        let input = json!(names);
+
+        let initial_prompt = format!("{},{}", system_prompt, input);
+
+        let request_body = OllamaRequest {
+            model: "mistral".into(),
+            prompt: initial_prompt,
+            stream: false,
+            options: { crate::ollama::Options { num_ctx: 20000 } },
+        };
+        let resp = self.ollama_client.make_generate_request(request_body).await?;
+        return Ok(resp)
+    }
+
     fn call_ollama(&self, system_info: Vec<TaggedProccess>) {
         // Start Chain of Thought
 
-        // Phase 1 
-            // Collect all the names of the parent proccesses and create list
-            // Send to agent to determine which ones are safe
+        // Phase 1
+        // Collect all the names of the parent proccesses and create list
+        // Send to agent to determine which ones are safe
         // Phase 2
-            // Parse response of agent and apply metadata tags to proccesses that come back to add 
-            // more context
-            // metadata includes forked proccesses names
-            // resource usage
-        // Phase 3 
-            // Generate report
+        // Parse response of agent and apply metadata tags to proccesses that come back to add
+        // more context
+        // metadata includes forked proccesses names
+        // resource usage
+        // Phase 3
+        // Generate report
 
-        let system_prompt = create_system_prompt();
+        let system_prompt = create_system_prompt_name_verifier();
 
         for tp in system_info {
             let mut initial_prompt_input: String = String::from("");
@@ -67,9 +99,10 @@ impl SystemMonitor {
             };
         }
     }
-    pub fn run(&self) -> Result<()>{
+    pub async fn run(&self) -> Result<()> {
         let input = self.collect_info().expect("Failed to collect system info");
-        self.call_ollama(input);
+        self.call_ollama_name_verification(input).await;
+        // self.call_ollama(input);
         Ok(())
     }
 }

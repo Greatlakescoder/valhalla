@@ -27,6 +27,6 @@ impl OllamaClient {
         };
 
         println!("Response: {}", &resp.response);
-        todo!("Need to have this call the ollama url ")
+        return Ok(resp)
     }
 }

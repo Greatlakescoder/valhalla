@@ -43,3 +43,15 @@ pub struct OllamaRequest {
 pub struct Options {
     pub num_ctx: u32
 }
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OllamaNameInput{
+    pub pid: u32,
+    pub name: String
+}
+
+impl OllamaNameInput {
+    pub fn to_json_string(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(self)
+    }
+}
