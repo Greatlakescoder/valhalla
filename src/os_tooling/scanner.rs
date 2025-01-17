@@ -7,7 +7,7 @@ use std::convert::TryFrom;
 use sysinfo::{CpuRefreshKind, Networks, Pid, ProcessRefreshKind, RefreshKind, System};
 use thiserror::Error;
 
-use crate::configuration::ScannerSettings;
+use crate::configuration::MonitorSettings;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OsProcessInformation {
@@ -79,7 +79,7 @@ impl TryFrom<&sysinfo::Process> for OsProcessInformation {
             user_id: user_id,
             cpu: process.cpu_usage(),
             // Convert bytes to MB
-            memory_usage: process.memory() / (1024 * 1024) ,
+            memory_usage: process.memory() / (1024 * 1024),
             run_time: process.run_time(),
             status: format!("{:?}", process.status()),
         })
@@ -240,7 +240,7 @@ pub struct TaggedProccess {
     pub is_high_cpu: bool,
     pub is_high_mem: bool,
     pub is_forking: bool,
-    pub is_long_run_time: bool
+    pub is_long_run_time: bool,
 }
 
 impl TaggedProccess {
@@ -299,24 +299,6 @@ pub fn is_process_alive(process: &OsProcessInformation) -> bool {
     true
 }
 
-pub fn is_valid_process_name(process: &OsProcessInformation, filter: &SystemFilter) -> bool {
-    // TODO we should also put these in the config
-
-    match &filter.process_name_filter {
-        Some(filter) => process.name.contains(filter),
-        None => true,
-    }
-}
-
-pub fn is_valid_process_pid(process: &OsProcessInformation, filter: &SystemFilter) -> bool {
-    // TODO we should also put these in the config
-
-    match filter.process_parent_filter {
-        Some(filter) => process.pid == filter,
-        None => true,
-    }
-}
-
 ///
 /// I think in order to get the model to act how we want, we need to label things and send it to multiple agents
 /// We can implement this with a tagging methodolgy similar to how EC2 does it or how you would label data in a csv
@@ -329,26 +311,34 @@ pub fn is_valid_process_pid(process: &OsProcessInformation, filter: &SystemFilte
 /// instead of wasting context windows
 ///
 
+pub struct SystemScanner {}
 
-pub struct SystemScanner {
-    filter: SystemFilter,
-}
+// TODO determine if we want to do any filtering every
+// pub fn is_valid_process_name(process: &OsProcessInformation, filter: &SystemFilter) -> bool {
+//     // TODO we should also put these in the config
 
-pub struct SystemFilter {
-    pub process_name_filter: Option<String>,
-    pub process_parent_filter: Option<u32>,
-}
+//     match &filter.process_name_filter {
+//         Some(filter) => process.name.contains(filter),
+//         None => true,
+//     }
+// }
+
+// pub fn is_valid_process_pid(process: &OsProcessInformation, filter: &SystemFilter) -> bool {
+//     // TODO we should also put these in the config
+
+//     match filter.process_parent_filter {
+//         Some(filter) => process.pid == filter,
+//         None => true,
+//     }
+// }
+// pub struct SystemFilter {
+//     pub process_name_filter: Option<String>,
+//     pub process_parent_filter: Option<u32>,
+// }
 
 impl SystemScanner {
-    pub fn build(configuration: &ScannerSettings) -> Self {
-        let process_name_filter = configuration.prefix.clone();
-        let process_parent_filter = configuration.parent_pid;
-        Self {
-            filter: SystemFilter {
-                process_name_filter,
-                process_parent_filter,
-            },
-        }
+    pub fn build() -> Self {
+        Self {}
     }
 
     pub fn tag_proccesses(&self, system_proccesses: Vec<AgentInput>) -> Vec<TaggedProccess> {

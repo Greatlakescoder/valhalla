@@ -1,14 +1,13 @@
 
 #[derive(serde::Deserialize,Clone)]
 pub struct Settings {
-    pub scanner: ScannerSettings
+    pub monitor: MonitorSettings
 }
 
 
 #[derive(serde::Deserialize,Clone)]
-pub struct ScannerSettings {
-    pub prefix: Option<String>,
-    pub parent_pid: Option<u32>
+pub struct MonitorSettings {
+    pub ollama_url: String
 }
 
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {

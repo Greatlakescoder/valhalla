@@ -1,2 +1,2 @@
-scanner:
-  prefix: "firefox"
+monitor:
+  ollama_url: "http://ai-ollama.tail8c6aba.ts.net:11434"

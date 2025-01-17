@@ -1,28 +1,26 @@
 // tests/scanner_test.rs
 use crate::helpers::TestEnvironment;
-use odin::{configuration::get_configuration, os_tooling::SystemScanner};
+use odin::{configuration::get_configuration, monitor::SystemMonitor, os_tooling::SystemScanner};
 
 #[test]
 fn test_process_scanning() {
     // Set a specific prefix for this test
     let configuration = {
-        let mut c = get_configuration().expect("Failed to read configuration.");
-
-        c.scanner.prefix = Some("Loki".to_owned());
+        let c = get_configuration().expect("Failed to read configuration.");
         c
     };
-    let system_scanner = SystemScanner::build(&configuration.scanner);
-    TestEnvironment::setup(configuration.scanner.prefix.unwrap());
+    let system_scanner = SystemMonitor::new(configuration);
+    TestEnvironment::setup("Loki".to_string());
     let processes_found = system_scanner
-        .scan_running_proccess()
+        .collect_info()
         .expect("Failed to collect test proccesses");
     let test_runner_pid = std::process::id();
     for p in processes_found {
-        if p.parent_process.pid == test_runner_pid {
-            // Four forked threads 
+        if p.agent_input.parent_process.pid == test_runner_pid {
+            // Four forked threads
             // One is this function since cargo isolate tests in own thread
             // Three for the spawned proccesses in Test Env
-            assert_eq!(p.forked_threads.len(), 4)
+            assert_eq!(p.agent_input.forked_threads.len(), 4)
         }
     }
 }
