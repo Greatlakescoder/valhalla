@@ -1,14 +1,10 @@
 use clap::Parser;
 use odin::{
-    configuration::{get_configuration, Settings},
+    configuration::get_configuration,
     monitor::SystemMonitor,
-    ollama::{create_system_prompt, OllamaRequest, OllamaResponse},
-    os_tooling::SystemScanner,
     telemetry::{get_subscriber, init_subscriber},
 };
-use reqwest::Client;
-use serde::Serialize;
-use std::{error::Error, fs::File, io::BufWriter, path::Path};
+use std::error::Error;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]

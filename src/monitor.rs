@@ -1,6 +1,6 @@
 use crate::{
     configuration::Settings,
-    ollama::{create_system_prompt, OllamaClient, OllamaRequest, OllamaResponse},
+    ollama::{create_system_prompt, OllamaClient, OllamaRequest},
     os_tooling::{SystemScanner, TaggedProccess},
     utils::write_to_json,
 };
@@ -27,7 +27,7 @@ impl SystemMonitor {
             &tagged_results,
             "/home/fiz/workbench/valhalla/data/output.json",
         )?;
-        return Ok(tagged_results);
+        Ok(tagged_results)
     }
 
     fn call_ollama(&self, system_info: Vec<TaggedProccess>) {

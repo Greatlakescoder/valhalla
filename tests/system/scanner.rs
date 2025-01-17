@@ -1,13 +1,13 @@
 // tests/scanner_test.rs
 use crate::helpers::TestEnvironment;
-use odin::{configuration::get_configuration, monitor::SystemMonitor, os_tooling::SystemScanner};
+use odin::{configuration::get_configuration, monitor::SystemMonitor};
 
 #[test]
 fn test_process_scanning() {
     // Set a specific prefix for this test
     let configuration = {
-        let c = get_configuration().expect("Failed to read configuration.");
-        c
+        
+        get_configuration().expect("Failed to read configuration.")
     };
     let system_scanner = SystemMonitor::new(configuration);
     TestEnvironment::setup("Loki".to_string());

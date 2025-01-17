@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{collections::HashMap, default, ffi::OsString};
+use std::{collections::HashMap, ffi::OsString};
 
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +7,6 @@ use std::convert::TryFrom;
 use sysinfo::{CpuRefreshKind, Networks, Pid, ProcessRefreshKind, RefreshKind, System};
 use thiserror::Error;
 
-use crate::configuration::MonitorSettings;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OsProcessInformation {
@@ -69,14 +68,14 @@ impl TryFrom<&sysinfo::Process> for OsProcessInformation {
         let user_id = process
             .effective_user_id()
             .map(|u| u.to_string())
-            .unwrap_or_else(String::new);
+            .unwrap_or_default();
 
         Ok(Self {
             pid: process.pid().as_u32(),
             // You could make this fallible if needed
             name,
             command: cmd?,
-            user_id: user_id,
+            user_id,
             cpu: process.cpu_usage(),
             // Convert bytes to MB
             memory_usage: process.memory() / (1024 * 1024),
@@ -280,7 +279,7 @@ impl TaggedProccess {
     }
 
     fn has_forked_processes(&mut self) {
-        if self.agent_input.forked_threads.len() > 0 {
+        if !self.agent_input.forked_threads.is_empty() {
             self.is_forking = true
         }
     }
@@ -348,7 +347,7 @@ impl SystemScanner {
             tagged_proccess.tag();
             tagged_proccesses.push(tagged_proccess);
         }
-        return tagged_proccesses;
+        tagged_proccesses
     }
 
     pub fn scan_running_proccess(&self) -> anyhow::Result<Vec<AgentInput>> {
@@ -396,15 +395,10 @@ impl SystemScanner {
                     }
                 } else {
                     // If we dont have this proccess from previous grouping of parent-child, add it
-                    if !agent_output.contains_key(&formatted_process.pid) {
-                        agent_output.insert(
-                            formatted_process.pid,
-                            AgentInput {
+                    agent_output.entry(formatted_process.pid).or_insert_with(|| AgentInput {
                                 forked_threads: vec![],
                                 parent_process: formatted_process,
-                            },
-                        );
-                    }
+                            });
                 }
             }
         }
