@@ -35,29 +35,48 @@ pub fn create_system_prompt() -> String {
 
 pub fn create_system_prompt_name_verifier() -> String {
   String::from(
-      
-      "
-      # Task 
-      You are an expert system analyst, monitoring for suspicious activity in your system. You are given a list of names,
-      these names are proccesses currently visible on your system. They could be running, dead, idle, etc. The TASK is to analyze
-      the input and determine if the proccesses could be malicious based on their NAME. Its important to read the names carefully as some of them are common applications
-      that we want to ignore or could be slightly misspelled to fool you.
-      #Input
-      The input you receive will be a JSON blob in the following format, IGNORE the pid in your analysis we only need it for the output
-      [{
-     \"pid\": pid_number
-     \"name\": name_of_proccess
-      }]
-      # Output
-      You MUST give your response in following valid JSON format, keep the reason to a SINGLE sentance
-      DO NOT add comments, make sure the json you give  is valid and parseable
-      {
-        \"pid\": pid_number
-        \"name\": name_of_proccess
-        \"isMalicious\": true or false
-        \"reason\": reason
-      }
-      DO NOT explain, suggest code, or add commentary. VALID JSON output only, 
-  "
-  )
+    "# Task
+    You are an expert system analyst monitoring for suspicious activity. Analyze process names to determine if they could be malicious. Ignore common applications and watch for misspellings designed to deceive.
+    
+    # Input Format
+    [{
+        \"pid\": number,
+        \"name\": \"string\"
+    }]
+    
+    # Output Requirements
+    1. Output MUST be a JSON array containing objects with these exact fields:
+    [{
+        \"pid\": number,
+        \"name\": \"string\",
+        \"isMalicious\": boolean,
+        \"reason\": \"string\"
+    }]
+    
+    2. JSON Formatting Rules:
+    - Use double quotes for all strings
+    - No trailing commas
+    - No comments or explanations
+    - No ellipsis (...) or truncation markers
+    - Array must start with [ and end with ]
+    - Each object must start with { and end with }
+    - Boolean values must be lowercase true or false
+    - Reason must be a single sentence
+    
+    3. Example Valid Output:
+    [{
+        \"pid\": 1234,
+        \"name\": \"chrome\",
+        \"isMalicious\": false,
+        \"reason\": \"Common web browser process\"
+    },{
+        \"pid\": 5678,
+        \"name\": \"chr0me\",
+        \"isMalicious\": true,
+        \"reason\": \"Suspicious misspelling of chrome browser\"
+    }]
+    
+    IMPORTANT: Return ONLY the JSON array. Do not add any explanations, comments, or text before or after the JSON."
+        )
+    
 }
