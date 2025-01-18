@@ -2,7 +2,7 @@ use crate::{
     configuration::Settings,
     ollama::{
         create_system_prompt, create_system_prompt_name_verifier, OllamaClient, OllamaNameInput,
-        OllamaRequest, OllamaResponse,
+        OllamaPhase1, OllamaRequest, OllamaResponse,
     },
     os_tooling::{SystemScanner, TaggedProccess},
     utils::write_to_json,
@@ -17,8 +17,11 @@ pub struct SystemMonitor {
 impl SystemMonitor {
     pub fn new(settings: Settings) -> Self {
         let ollama_client = OllamaClient::new(settings.clone().monitor.ollama_url);
-      
-        Self { ollama_client ,settings}
+
+        Self {
+            ollama_client,
+            settings,
+        }
     }
 
     pub fn collect_info(&self) -> Result<Vec<TaggedProccess>> {
@@ -35,7 +38,7 @@ impl SystemMonitor {
     async fn call_ollama_name_verification(
         &self,
         system_info: Vec<TaggedProccess>,
-    ) -> Result<OllamaResponse> {
+    ) -> Result<Vec<OllamaPhase1>> {
         let system_prompt = create_system_prompt_name_verifier();
 
         // Need to get just a list of names
@@ -54,11 +57,39 @@ impl SystemMonitor {
             model: &self.settings.monitor.model,
             prompt: initial_prompt,
             stream: false,
-            options: { crate::ollama::Options { num_ctx: self.settings.monitor.context_size } },
+            options: {
+                crate::ollama::Options {
+                    num_ctx: self.settings.monitor.context_size,
+                }
+            },
         };
-        tracing::info!("Sending Request {}",request_body);
-        let resp = self.ollama_client.make_generate_request(request_body).await?;
-        return Ok(resp)
+        tracing::debug!("Sending Request {}", request_body);
+        let resp = self
+            .ollama_client
+            .make_generate_request(request_body)
+            .await?;
+        tracing::debug!("Got Response {}", &resp.response);
+        let json_str = &resp.response.replace("...", "");
+        let results = serde_json::from_str(json_str);
+        let results: Vec<OllamaPhase1> = match results {
+            Ok(v) => v,
+            Err(e) => {
+                println!("Failed to deserilize result {} {}", json_str, e);
+                return Err(e.into());
+            }
+        };
+
+        let filtered_results: Vec<OllamaPhase1> =
+            results.into_iter().filter(|x| x.is_malicious).collect();
+        if filtered_results.len() > 0 {
+            for f in &filtered_results {
+                println!("{:?}", f.to_json_string())
+            }
+        } else {
+            println!("No bad proccess found")
+        }
+
+        return Ok(filtered_results);
     }
 
     fn call_ollama(&self, system_info: Vec<TaggedProccess>) {

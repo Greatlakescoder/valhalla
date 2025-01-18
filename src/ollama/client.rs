@@ -26,7 +26,7 @@ impl OllamaClient {
             Err(err) => return Err(anyhow!("Failed to send to request {err}")),
         };
 
-        tracing::info!("Response: {}", &resp.response);
+        tracing::debug!("Response: {}", &resp.response);
         return Ok(resp)
     }
 }

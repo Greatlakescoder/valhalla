@@ -65,3 +65,20 @@ impl OllamaNameInput {
         serde_json::to_string_pretty(self)
     }
 }
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OllamaPhase1{
+    pub pid: u64,
+    pub name: String,
+    pub is_malicious: bool,
+    pub reason: String
+}
+
+impl OllamaPhase1 {
+    pub fn to_json_string(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(self)
+    }
+}
+
+

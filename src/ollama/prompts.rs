@@ -49,14 +49,15 @@ pub fn create_system_prompt_name_verifier() -> String {
      \"name\": name_of_proccess
       }]
       # Output
-      You MUST give your response in following JSON format, keep the reason to a SINGLE sentance
+      You MUST give your response in following valid JSON format, keep the reason to a SINGLE sentance
+      DO NOT add comments, make sure the json you give  is valid and parseable
       {
         \"pid\": pid_number
         \"name\": name_of_proccess
-        \"is_malicious\": true or false
+        \"isMalicious\": true or false
         \"reason\": reason
       }
-      DO NOT explain, suggest code, or add commentary. JSON output only.
+      DO NOT explain, suggest code, or add commentary. VALID JSON output only, 
   "
   )
 }
