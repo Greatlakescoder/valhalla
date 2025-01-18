@@ -16,7 +16,7 @@ impl OllamaClient {
         }
     }
 
-    pub async fn make_generate_request(&self, request: OllamaRequest) -> Result<OllamaResponse> {
+    pub async fn make_generate_request(&self, request: OllamaRequest<'_>) -> Result<OllamaResponse> {
         //http://ai-ollama.tail8c6aba.ts.net:11434/api/generate
         let generate_url: String = format!("{}/api/generate",self.url);
         let resp = match self.client.post(&generate_url).json(&request).send().await {
@@ -26,7 +26,7 @@ impl OllamaClient {
             Err(err) => return Err(anyhow!("Failed to send to request {err}")),
         };
 
-        println!("Response: {}", &resp.response);
+        tracing::info!("Response: {}", &resp.response);
         return Ok(resp)
     }
 }

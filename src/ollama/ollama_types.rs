@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 
@@ -33,12 +35,20 @@ impl OllamaResponse {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct OllamaRequest {
-    pub model: String,
+pub struct OllamaRequest<'a> {
+    pub model: &'a str,
     pub prompt: String,
     pub stream: bool,
     pub options: Options
 }
+
+impl Display for OllamaRequest<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let resp = serde_json::to_string_pretty(self).expect("Failed to format");
+        write!(f,"{}",resp)
+    }
+}
+
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Options {
     pub num_ctx: u32

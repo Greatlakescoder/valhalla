@@ -11,16 +11,14 @@ use anyhow::Result;
 use serde_json::json;
 pub struct SystemMonitor {
     ollama_client: OllamaClient,
-}
-
-pub struct ClientSettings {
-    url: String,
+    settings: Settings,
 }
 
 impl SystemMonitor {
     pub fn new(settings: Settings) -> Self {
-        let ollama_client = OllamaClient::new(settings.monitor.ollama_url);
-        Self { ollama_client }
+        let ollama_client = OllamaClient::new(settings.clone().monitor.ollama_url);
+      
+        Self { ollama_client ,settings}
     }
 
     pub fn collect_info(&self) -> Result<Vec<TaggedProccess>> {
@@ -53,11 +51,12 @@ impl SystemMonitor {
         let initial_prompt = format!("{},{}", system_prompt, input);
 
         let request_body = OllamaRequest {
-            model: "mistral".into(),
+            model: &self.settings.monitor.model,
             prompt: initial_prompt,
             stream: false,
-            options: { crate::ollama::Options { num_ctx: 20000 } },
+            options: { crate::ollama::Options { num_ctx: self.settings.monitor.context_size } },
         };
+        tracing::info!("Sending Request {}",request_body);
         let resp = self.ollama_client.make_generate_request(request_body).await?;
         return Ok(resp)
     }

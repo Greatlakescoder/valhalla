@@ -1,2 +1,4 @@
 monitor:
   ollama_url: http://ai-ollama.tail8c6aba.ts.net:11434
+  model: phi4
+  context_size: 10000
