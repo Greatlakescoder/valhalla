@@ -25,7 +25,7 @@ impl SystemMonitor {
     }
 
     pub fn collect_info(&self) -> Result<Vec<TaggedProccess>> {
-        let scanner = SystemScanner::build();
+        let scanner = SystemScanner::new();
         let results = scanner.scan_running_proccess()?;
         let tagged_results = scanner.tag_proccesses(results);
         write_to_json(
@@ -69,12 +69,15 @@ impl SystemMonitor {
             .make_generate_request(request_body)
             .await?;
         tracing::debug!("Got Response {}", &resp.response);
-        let json_str = &resp.response.replace("...", "");
-        let results = serde_json::from_str(json_str);
+        write_to_json(
+            &resp.response,
+            "/home/fiz/workbench/valhalla/data/phase_1_output.json",
+        )?;
+        let results = serde_json::from_str(&resp.response);
         let results: Vec<OllamaPhase1> = match results {
             Ok(v) => v,
             Err(e) => {
-                println!("Failed to deserilize result {} {}", json_str, e);
+                println!("Failed to deserilize result {} {}", &resp.response, e);
                 return Err(e.into());
             }
         };

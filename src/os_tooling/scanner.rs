@@ -1,12 +1,12 @@
 use core::fmt;
 use std::{collections::HashMap, ffi::OsString};
 
+use metrics::counter;
 use serde::{Deserialize, Serialize};
 
 use std::convert::TryFrom;
 use sysinfo::{CpuRefreshKind, Networks, Pid, ProcessRefreshKind, RefreshKind, System};
 use thiserror::Error;
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OsProcessInformation {
@@ -336,7 +336,7 @@ pub struct SystemScanner {}
 // }
 
 impl SystemScanner {
-    pub fn build() -> Self {
+    pub fn new() -> Self {
         Self {}
     }
 
@@ -349,11 +349,15 @@ impl SystemScanner {
         }
         tagged_proccesses
     }
-
+    /**
+    Scans all running processes on the system and groups them by parent-child relationships.
+    Returns a Vec of AgentInput where each entry contains a parent process and its forked threads.
+    This helps track process hierarchies and identify related processes.
+    */
     pub fn scan_running_proccess(&self) -> anyhow::Result<Vec<AgentInput>> {
-        let mut output: Vec<AgentInput> = vec![];
         let mut sys = System::new_all();
         let mut agent_output: HashMap<u32, AgentInput> = HashMap::new();
+        counter!("scan.run").increment(1);
 
         // First we update all information of our `System` struct.
         sys.refresh_specifics(
@@ -361,49 +365,57 @@ impl SystemScanner {
         );
 
         for process in sys.processes().values() {
-            let formatted_process: OsProcessInformation = process.try_into().unwrap();
+            let formatted_process: OsProcessInformation = process.try_into()?;
             if !is_process_alive(&formatted_process) {
                 continue;
-            } else {
-                // So part of the problem is we need to be able to track forked/spawned processes so the agent will know they are connected
-                // otherwise its going to think we have 16 clones of say a Tokio app
-                if process.parent().is_some() {
-                    let lookup_key = &process.parent().unwrap().as_u32();
-                    if agent_output.contains_key(lookup_key) {
+            }
+
+            // Handle process based on whether it has a parent
+            if let Some(parent_pid) = process.parent() {
+                let lookup_key = parent_pid.as_u32();
+
+                match sys.process(Pid::from(lookup_key as usize)) {
+                    Some(parent_process) if !agent_output.contains_key(&lookup_key) => {
+                        // First time seeing this parent, create new entry
+                        let formatted_parent: OsProcessInformation = parent_process.try_into()?;
+                        agent_output.insert(
+                            lookup_key,
+                            AgentInput {
+                                forked_threads: vec![formatted_process],
+                                parent_process: formatted_parent,
+                            },
+                        );
+                    }
+                    Some(_) => {
+                        // Parent exists in map, update forked threads
                         agent_output
-                            .entry(*lookup_key)
+                            .entry(lookup_key)
                             .and_modify(|x| x.forked_threads.push(formatted_process.clone()))
                             .or_insert(AgentInput {
                                 forked_threads: vec![],
                                 parent_process: formatted_process,
                             });
-                    } else {
-                        // If we are adding for first time we need to find the parent process
-                        if let Some(parent_process) = sys.process(Pid::from(*lookup_key as usize)) {
-                            let formatted_parent_process: OsProcessInformation =
-                                parent_process.try_into().unwrap();
-                            agent_output.insert(
-                                lookup_key.to_owned(),
-                                AgentInput {
-                                    forked_threads: vec![formatted_process],
-                                    parent_process: formatted_parent_process,
-                                },
-                            );
-                        } else {
-                            continue;
-                        }
                     }
-                } else {
-                    // If we dont have this proccess from previous grouping of parent-child, add it
-                    agent_output.entry(formatted_process.pid).or_insert_with(|| AgentInput {
-                                forked_threads: vec![],
-                                parent_process: formatted_process,
-                            });
+                    None => continue,
                 }
+            } else {
+                // No parent, add as standalone process
+                agent_output
+                    .entry(formatted_process.pid)
+                    .or_insert(AgentInput {
+                        forked_threads: vec![],
+                        parent_process: formatted_process,
+                    });
             }
         }
-        // We need to use for each here since map does not consume the iter
-        agent_output.iter().for_each(|x| output.push(x.1.clone()));
-        Ok(output)
+
+        // Convert to Vec more efficiently
+        Ok(agent_output.into_values().collect())
+    }
+}
+
+impl Default for SystemScanner {
+    fn default() -> Self {
+        Self::new()
     }
 }

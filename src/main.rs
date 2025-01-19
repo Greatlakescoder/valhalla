@@ -1,10 +1,11 @@
 use clap::Parser;
+use metrics::counter;
 use odin::{
     configuration::get_configuration,
     monitor::SystemMonitor,
     telemetry::{get_subscriber, init_subscriber},
 };
-use std::error::Error;
+use std::{error::Error, thread::sleep, time::Duration};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
