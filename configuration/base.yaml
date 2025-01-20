@@ -1,4 +1,4 @@
 monitor:
   ollama_url: http://ai-ollama.tail8c6aba.ts.net:11434
-  model: llama3.2
+  model: mistral
   context_size: 10000

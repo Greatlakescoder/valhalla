@@ -1,8 +1,7 @@
 use crate::{
     configuration::Settings,
     ollama::{
-        create_system_prompt, create_system_prompt_name_verifier, OllamaClient, OllamaNameInput,
-        OllamaPhase1, OllamaRequest, OllamaResponse,
+        get_full_prompt, OllamaClient, OllamaNameInput, OllamaPhase1, OllamaRequest, OllamaResponse
     },
     os_tooling::{SystemScanner, TaggedProccess},
     utils::write_to_json,
@@ -39,7 +38,7 @@ impl SystemMonitor {
         &self,
         system_info: Vec<TaggedProccess>,
     ) -> Result<Vec<OllamaPhase1>> {
-        let system_prompt = create_system_prompt_name_verifier();
+        let system_prompt = get_full_prompt();
 
         // Need to get just a list of names
         let names: Vec<OllamaNameInput> = system_info
@@ -73,7 +72,8 @@ impl SystemMonitor {
             &resp.response,
             "/home/fiz/workbench/valhalla/data/phase_1_output.json",
         )?;
-        let results = serde_json::from_str(&resp.response);
+        let formatted_response = &resp.response.replace("...", "");
+        let results = serde_json::from_str(formatted_response);
         let results: Vec<OllamaPhase1> = match results {
             Ok(v) => v,
             Err(e) => {
@@ -109,7 +109,7 @@ impl SystemMonitor {
         // Phase 3
         // Generate report
 
-        let system_prompt = create_system_prompt_name_verifier();
+        let system_prompt = get_full_prompt();
 
         for tp in system_info {
             let mut initial_prompt_input: String = String::from("");

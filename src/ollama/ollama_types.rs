@@ -71,6 +71,9 @@ impl OllamaNameInput {
 pub struct OllamaPhase1{
     pub pid: u64,
     pub name: String,
+    #[serde(alias = "isMalacious")] // Handle common misspelling
+    #[serde(alias = "is_malicious")]
+    #[serde(alias = "ismalicious")] 
     pub is_malicious: bool,
     pub reason: String
 }
