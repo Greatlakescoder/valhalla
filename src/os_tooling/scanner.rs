@@ -25,6 +25,7 @@ pub struct OsProcessInformation {
     pub command: Vec<String>,
     #[serde(skip_serializing)]
     pub user_id: String,
+    pub attributes: HashMap<MetadataTags, String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -81,6 +82,7 @@ impl TryFrom<&sysinfo::Process> for OsProcessInformation {
             memory_usage: process.memory() / (1024 * 1024),
             run_time: process.run_time(),
             status: format!("{:?}", process.status()),
+            attributes: HashMap::new(),
         })
     }
 }
@@ -233,61 +235,53 @@ impl AgentInput {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct TaggedProccess {
-    pub agent_input: AgentInput,
-    pub is_high_cpu: bool,
-    pub is_high_mem: bool,
-    pub is_forking: bool,
-    pub is_long_run_time: bool,
+#[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq)]
+pub enum MetadataTags {
+    HighCpu,
+    HighMemory,
+    TooManyFileDescriptors,
 }
 
-impl TaggedProccess {
-    pub fn new(agent_input: AgentInput) -> Self {
+trait ProcessAttribute {
+    // &mut interior mutability
+    fn tag(&self, process: &mut OsProcessInformation);
+    fn untag(&self, process: &mut OsProcessInformation);
+}
+
+struct ResourceUsageAttribute {
+    cpu_threshold: f32,
+    memory_threshold: u64,
+}
+impl ResourceUsageAttribute {
+    pub fn new(cpu_threshold: f32, memory_threshold: u64) -> Self {
         Self {
-            agent_input: agent_input.clone(),
-            is_high_cpu: false,
-            is_high_mem: false,
-            is_long_run_time: false,
-            is_forking: false,
+            cpu_threshold,
+            memory_threshold,
         }
-    }
-
-    pub fn tag(&mut self) {
-        self.has_high_cpu_usage();
-        self.has_high_memory_usage();
-        self.has_forked_processes();
-        self.has_long_runtime();
-    }
-
-    fn has_high_cpu_usage(&mut self) {
-        if self.agent_input.parent_process.cpu > 60.0 {
-            self.is_high_cpu = true
-        }
-    }
-
-    fn has_high_memory_usage(&mut self) {
-        if self.agent_input.parent_process.memory_usage > 250 {
-            self.is_high_mem = true
-        }
-    }
-
-    fn has_long_runtime(&mut self) {
-        if self.agent_input.parent_process.run_time > 7200 {
-            self.is_long_run_time = true
-        }
-    }
-
-    fn has_forked_processes(&mut self) {
-        if !self.agent_input.forked_threads.is_empty() {
-            self.is_forking = true
-        }
-    }
-
-    pub fn to_json_string(&self) -> Result<String, serde_json::Error> {
-        serde_json::to_string_pretty(self)
     }
 }
+impl ProcessAttribute for ResourceUsageAttribute {
+    fn tag(&self, process: &mut OsProcessInformation) {
+        if process.cpu > self.cpu_threshold {
+            process
+                .attributes
+                .insert(MetadataTags::HighCpu, process.cpu.to_string());
+        }
+        if process.memory_usage > self.memory_threshold {
+            process
+                .attributes
+                .insert(MetadataTags::HighMemory, process.memory_usage.to_string());
+        }
+    }
+
+    fn untag(&self, process: &mut OsProcessInformation) {
+        process.attributes.remove(&MetadataTags::HighCpu);
+        process.attributes.remove(&MetadataTags::HighMemory);
+    }
+}
+
+struct FileDescriptorAttribute {}
+
 
 pub fn is_process_alive(process: &OsProcessInformation) -> bool {
     // TODO we should also put these in the config
@@ -310,44 +304,23 @@ pub fn is_process_alive(process: &OsProcessInformation) -> bool {
 /// instead of wasting context windows
 ///
 
-pub struct SystemScanner {}
-
-// TODO determine if we want to do any filtering every
-// pub fn is_valid_process_name(process: &OsProcessInformation, filter: &SystemFilter) -> bool {
-//     // TODO we should also put these in the config
-
-//     match &filter.process_name_filter {
-//         Some(filter) => process.name.contains(filter),
-//         None => true,
-//     }
-// }
-
-// pub fn is_valid_process_pid(process: &OsProcessInformation, filter: &SystemFilter) -> bool {
-//     // TODO we should also put these in the config
-
-//     match filter.process_parent_filter {
-//         Some(filter) => process.pid == filter,
-//         None => true,
-//     }
-// }
-// pub struct SystemFilter {
-//     pub process_name_filter: Option<String>,
-//     pub process_parent_filter: Option<u32>,
-// }
+pub struct SystemScanner {
+    attributes: Vec<Box<dyn ProcessAttribute>>,
+}
 
 impl SystemScanner {
     pub fn new() -> Self {
-        Self {}
+        let attributes: Vec<Box<dyn ProcessAttribute>> =
+            vec![Box::new(ResourceUsageAttribute::new(60.0, 7200))];
+        Self { attributes }
     }
 
-    pub fn tag_proccesses(&self, system_proccesses: Vec<AgentInput>) -> Vec<TaggedProccess> {
-        let mut tagged_proccesses: Vec<TaggedProccess> = vec![];
-        for p in system_proccesses {
-            let mut tagged_proccess = TaggedProccess::new(p);
-            tagged_proccess.tag();
-            tagged_proccesses.push(tagged_proccess);
+    pub fn apply_attributes(&self, input: &mut Vec<AgentInput>) {
+        for attribute in &self.attributes {
+            for p in input.into_iter() {
+                attribute.tag(&mut p.parent_process);
+            }
         }
-        tagged_proccesses
     }
     /**
     Scans all running processes on the system and groups them by parent-child relationships.
