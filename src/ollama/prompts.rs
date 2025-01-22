@@ -32,7 +32,7 @@ Return a JSON array where each object MUST have these EXACT fields:
 
 CRITICAL RESPONSE RULES:
 1. Every single process MUST be included in the output
-2. Repeated values are okay, dont worry about brevity
+2. Repeated values are okay, print every single process
 3. Comments are invalid in this context like "rest of array similar" or "removed for brevity"
 4. Every object MUST have all four fields above
 5. Field names MUST match exactly ("isMalicious" not "is_malicious")

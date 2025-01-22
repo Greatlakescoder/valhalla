@@ -26,6 +26,7 @@ pub struct OsProcessInformation {
     #[serde(skip_serializing)]
     pub user_id: String,
     pub attributes: HashMap<MetadataTags, String>,
+    pub fd_count: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -83,6 +84,7 @@ impl TryFrom<&sysinfo::Process> for OsProcessInformation {
             run_time: process.run_time(),
             status: format!("{:?}", process.status()),
             attributes: HashMap::new(),
+            fd_count: 0
         })
     }
 }
@@ -280,7 +282,21 @@ impl ProcessAttribute for ResourceUsageAttribute {
     }
 }
 
-struct FileDescriptorAttribute {}
+struct FileDescriptorAttribute {
+    fd_threshold: u64,
+}
+
+impl ProcessAttribute for FileDescriptorAttribute {
+    fn tag(&self, process: &mut OsProcessInformation) {
+        if process.fd_count > self.fd_threshold {
+            process.attributes.insert(MetadataTags::TooManyFileDescriptors, process.fd_count.to_string());
+        }
+    }
+
+    fn untag(&self, process: &mut OsProcessInformation) {
+        process.attributes.remove(&MetadataTags::TooManyFileDescriptors);
+    }
+}
 
 
 pub fn is_process_alive(process: &OsProcessInformation) -> bool {

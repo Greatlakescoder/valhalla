@@ -6,6 +6,7 @@ use crate::{
 };
 use anyhow::Result;
 use serde_json::json;
+use std::collections::HashSet;
 pub struct SystemMonitor {
     ollama_client: OllamaClient,
     settings: Settings,
@@ -24,11 +25,8 @@ impl SystemMonitor {
     pub fn collect_info(&self) -> Result<Vec<AgentInput>> {
         let scanner = SystemScanner::new();
         let mut results = scanner.scan_running_proccess()?;
-        let tagged_results = scanner.apply_attributes(&mut results);
-        write_to_json(
-            &tagged_results,
-            "/home/fiz/workbench/valhalla/data/output.json",
-        )?;
+        scanner.apply_attributes(&mut results);
+        write_to_json(&results, "/home/fiz/workbench/valhalla/data/output.json")?;
         Ok(results)
     }
 
@@ -57,6 +55,9 @@ impl SystemMonitor {
                 name: input.parent_process.name,
             })
             .collect();
+        // Get set of input PIDs
+        let input_pids: HashSet<u64> = names.iter().map(|input| input.pid as u64).collect();
+
         let input = json!(names);
 
         let initial_prompt = format!("{},{}", system_prompt, input);
@@ -77,19 +78,36 @@ impl SystemMonitor {
             .make_generate_request(request_body)
             .await?;
         tracing::debug!("Got Response {}", &resp.response);
-        write_to_json(
-            &resp.response,
-            "/home/fiz/workbench/valhalla/data/phase_1_output.json",
-        )?;
-        let formatted_response = &resp.response.replace("...", "");
-        let results = serde_json::from_str(formatted_response);
-        let results: Vec<OllamaPhase1> = match results {
-            Ok(v) => v,
-            Err(e) => {
-                println!("Failed to deserilize result {} {}", &resp.response, e);
-                return Err(e.into());
-            }
-        };
+
+        let results: Vec<OllamaPhase1> =
+            match serde_json::from_str::<Vec<OllamaPhase1>>(&resp.response) {
+                Ok(v) => {
+                    write_to_json(&v, "/home/fiz/workbench/valhalla/data/phase_1_output.json")?;
+                    // Get set of output PIDs
+                    let output_pids: HashSet<u64> = v.iter().map(|result| result.pid).collect();
+                    assert!(output_pids.is_subset(&input_pids));
+                    v
+                }
+                Err(e) => {
+                    // Log the error details for debugging
+                    tracing::error!("JSON parsing error: {}", e);
+                    tracing::debug!("Raw response: {}", &resp.response);
+                    write_to_json(
+                        &resp.response,
+                        "/home/fiz/workbench/valhalla/data/phase_1_output.json",
+                    )?;
+
+                    // Attempt to clean/fix common JSON issues
+                    let cleaned_response = attempt_json_cleanup(&resp.response);
+                    match serde_json::from_str::<Vec<OllamaPhase1>>(&cleaned_response) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            tracing::error!("Failed to parse even after cleanup: {}", e);
+                            return Err(e.into());
+                        }
+                    }
+                }
+            };
 
         let filtered_results: Vec<OllamaPhase1> =
             results.into_iter().filter(|x| x.is_malicious).collect();
@@ -110,4 +128,9 @@ impl SystemMonitor {
 
         Ok(())
     }
+}
+
+fn attempt_json_cleanup(response: &str) -> String {
+    // Add basic JSON cleanup logic here
+    response.trim().replace("...", "")
 }
