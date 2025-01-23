@@ -67,8 +67,25 @@ impl OllamaNameInput {
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OllamaResourceUsageInput{
+    pub pid: u32,
+    pub name: String,
+    pub cpu_usage: u32,
+    pub memory_usage: u32,
+}
+
+impl OllamaResourceUsageInput {
+    pub fn to_json_string(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(self)
+    }
+}
+
+
+
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct OllamaPhase1{
+pub struct OllamaAgentOutput{
     pub pid: u64,
     pub name: String,
     #[serde(alias = "isMalacious")] // Handle common misspelling
@@ -78,7 +95,7 @@ pub struct OllamaPhase1{
     pub reason: String
 }
 
-impl OllamaPhase1 {
+impl OllamaAgentOutput {
     pub fn to_json_string(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string_pretty(self)
     }

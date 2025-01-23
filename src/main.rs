@@ -32,12 +32,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let subscriber = get_subscriber("odin".into(), "info".into(), std::io::stdout);
     init_subscriber(subscriber);
 
-    tracing::info!("Running Query");
-
-    tracing::info!("Collecting Running Proccesses");
+    tracing::info!("System Monitor Starting");
     let settings = get_configuration().expect("Failed to read configuration.");
-    let monitor = SystemMonitor::new(settings);
-    let _ = monitor.run().await;
+    
+    // Spawn monitoring task that runs every 30 seconds
+    tokio::spawn(async move {
+        loop {
+            let monitor = SystemMonitor::new(settings.clone());
+            if let Err(e) = monitor.run().await {
+                tracing::error!("Monitor error: {}", e);
+            }
+            tokio::time::sleep(Duration::from_secs(30)).await;
+        }
+    });
 
+    // Keep main process running until ctrl-c
+    tokio::signal::ctrl_c().await?;
+    tracing::info!("Shutting down");
+    
     Ok(())
 }

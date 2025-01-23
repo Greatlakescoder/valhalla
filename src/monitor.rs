@@ -1,7 +1,10 @@
 use crate::{
     configuration::Settings,
-    ollama::{get_full_prompt, OllamaClient, OllamaNameInput, OllamaPhase1, OllamaRequest},
-    os_tooling::{AgentInput, SystemScanner},
+    ollama::{
+        get_name_verification_prompt, get_resource_verification_prompt, OllamaAgentOutput,
+        OllamaClient, OllamaNameInput, OllamaRequest, OllamaResourceUsageInput,
+    },
+    os_tooling::{AgentInput, MetadataTags, SystemScanner},
     utils::write_to_json,
 };
 use anyhow::Result;
@@ -30,22 +33,14 @@ impl SystemMonitor {
         Ok(results)
     }
 
-    //     // Chain of Thought
-    //     // Phase 1
-    //     // Collect all the names of the parent proccesses and create list
-    //     // Send to agent to determine which ones are safe
-    //     // Phase 2
-    //     // Parse response of agent and apply metadata tags to proccesses that come back to add
-    //     // more context
-    //     // metadata includes forked proccesses names
     //     // resource usage
     //     // Phase 3
     //     // Generate report
     async fn call_ollama_name_verification(
         &self,
         system_info: Vec<AgentInput>,
-    ) -> Result<Vec<OllamaPhase1>> {
-        let system_prompt = get_full_prompt();
+    ) -> Result<Vec<OllamaAgentOutput>> {
+        let system_prompt = get_name_verification_prompt();
 
         // Need to get just a list of names
         let names: Vec<OllamaNameInput> = system_info
@@ -79,8 +74,8 @@ impl SystemMonitor {
             .await?;
         tracing::debug!("Got Response {}", &resp.response);
 
-        let results: Vec<OllamaPhase1> =
-            match serde_json::from_str::<Vec<OllamaPhase1>>(&resp.response) {
+        let results: Vec<OllamaAgentOutput> =
+            match serde_json::from_str::<Vec<OllamaAgentOutput>>(&resp.response) {
                 Ok(v) => {
                     write_to_json(&v, "/home/fiz/workbench/valhalla/data/phase_1_output.json")?;
                     // Get set of output PIDs
@@ -99,7 +94,7 @@ impl SystemMonitor {
 
                     // Attempt to clean/fix common JSON issues
                     let cleaned_response = attempt_json_cleanup(&resp.response);
-                    match serde_json::from_str::<Vec<OllamaPhase1>>(&cleaned_response) {
+                    match serde_json::from_str::<Vec<OllamaAgentOutput>>(&cleaned_response) {
                         Ok(v) => v,
                         Err(e) => {
                             tracing::error!("Failed to parse even after cleanup: {}", e);
@@ -109,22 +104,121 @@ impl SystemMonitor {
                 }
             };
 
-        let filtered_results: Vec<OllamaPhase1> =
+        let filtered_results: Vec<OllamaAgentOutput> =
             results.into_iter().filter(|x| x.is_malicious).collect();
-        if filtered_results.len() > 0 {
-            for f in &filtered_results {
-                println!("{:?}", f.to_json_string())
+
+        return Ok(filtered_results);
+    }
+
+    async fn call_ollama_resource_verification(
+        &self,
+        system_info: Vec<AgentInput>,
+        name_verification_results: Vec<OllamaAgentOutput>,
+    ) -> Result<Vec<OllamaAgentOutput>> {
+        let system_prompt = get_resource_verification_prompt();
+
+        // Need to get just a list of pids from first agent and map to original input to get the resource usage
+
+        // Need to map si to name_verification_results
+        let mut resource_usage: Vec<OllamaResourceUsageInput> = Vec::new();
+        for si in system_info {
+            let name_verification = name_verification_results
+                .iter()
+                .find(|x| x.pid == si.parent_process.pid as u64);
+            if let Some(nv) = name_verification {
+                let cpu_usage = si
+                    .parent_process
+                    .attributes
+                    .get(&MetadataTags::HighCpu)
+                    .ok_or_else(|| anyhow::anyhow!("CPU usage attribute not found"))?
+                    .parse::<u32>()
+                    .map_err(|e| anyhow::anyhow!("Failed to parse CPU usage: {}", e))?;
+
+                let memory_usage = si
+                    .parent_process
+                    .attributes
+                    .get(&MetadataTags::HighMemory)
+                    .ok_or_else(|| anyhow::anyhow!("Memory usage attribute not found"))?
+                    .parse::<u32>()
+                    .map_err(|e| anyhow::anyhow!("Failed to parse memory usage: {}", e))?;
+
+                resource_usage.push(OllamaResourceUsageInput {
+                    pid: nv.pid as u32,
+                    name: nv.name.clone(),
+                    cpu_usage,
+                    memory_usage,
+                });
             }
-        } else {
-            println!("No bad proccess found")
         }
+        // Get set of input PIDs
+        let input_pids: HashSet<u64> = resource_usage
+            .iter()
+            .map(|input| input.pid as u64)
+            .collect();
+
+        let input = json!(resource_usage);
+
+        let initial_prompt = format!("{},{}", system_prompt, input);
+
+        let request_body = OllamaRequest {
+            model: &self.settings.monitor.model,
+            prompt: initial_prompt,
+            stream: false,
+            options: {
+                crate::ollama::Options {
+                    num_ctx: self.settings.monitor.context_size,
+                }
+            },
+        };
+        tracing::debug!("Sending Request {}", request_body);
+        let resp = self
+            .ollama_client
+            .make_generate_request(request_body)
+            .await?;
+        tracing::debug!("Got Response {}", &resp.response);
+
+        let results: Vec<OllamaAgentOutput> =
+            match serde_json::from_str::<Vec<OllamaAgentOutput>>(&resp.response) {
+                Ok(v) => {
+                    write_to_json(&v, "/home/fiz/workbench/valhalla/data/phase_2_output.json")?;
+                    // Get set of output PIDs
+                    let output_pids: HashSet<u64> = v.iter().map(|result| result.pid).collect();
+                    assert!(output_pids.is_subset(&input_pids));
+                    v
+                }
+                Err(e) => {
+                    // Log the error details for debugging
+                    tracing::error!("JSON parsing error: {}", e);
+                    tracing::debug!("Raw response: {}", &resp.response);
+                    write_to_json(
+                        &resp.response,
+                        "/home/fiz/workbench/valhalla/data/phase_2_output.json",
+                    )?;
+
+                    // Attempt to clean/fix common JSON issues
+                    let cleaned_response = attempt_json_cleanup(&resp.response);
+                    match serde_json::from_str::<Vec<OllamaAgentOutput>>(&cleaned_response) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            tracing::error!("Failed to parse even after cleanup: {}", e);
+                            return Err(e.into());
+                        }
+                    }
+                }
+            };
+
+        let filtered_results: Vec<OllamaAgentOutput> =
+            results.into_iter().filter(|x| x.is_malicious).collect();
 
         return Ok(filtered_results);
     }
 
     pub async fn run(&self) -> Result<()> {
         let input = self.collect_info().expect("Failed to collect system info");
-        let _ = self.call_ollama_name_verification(input).await;
+        let results = self.call_ollama_name_verification(input.clone()).await?;
+        let _ = self
+            .call_ollama_resource_verification(input, results)
+            .await?;
 
         Ok(())
     }
