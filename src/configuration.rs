@@ -2,6 +2,7 @@
 #[derive(serde::Deserialize,Clone)]
 pub struct Settings {
     pub monitor: MonitorSettings
+
 }
 
 
@@ -9,7 +10,8 @@ pub struct Settings {
 pub struct MonitorSettings {
     pub ollama_url: String,
     pub model: String,
-    pub context_size: u32
+    pub context_size: u32,
+    pub offline: bool
 }
 
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {

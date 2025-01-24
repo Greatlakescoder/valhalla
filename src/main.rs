@@ -38,6 +38,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Spawn monitoring task that runs every 30 seconds
     tokio::spawn(async move {
         loop {
+            tracing::info!("System Monitor running");
             let monitor = SystemMonitor::new(settings.clone());
             if let Err(e) = monitor.run().await {
                 tracing::error!("Monitor error: {}", e);

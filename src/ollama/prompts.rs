@@ -74,14 +74,14 @@ Analysis rules:
    - Memory leaks or abnormal growth
    - Excessive disk I/O with encrypted content
 
+
 Return a JSON array where each object MUST have these EXACT fields:
-{
-  "pid": number,           (REQUIRED: process ID as number)
-  "cpu_percent": number,   (REQUIRED: CPU usage as number)
-  "memory_mb": number,     (REQUIRED: memory usage in MB as number)
-  "isSuspicious": boolean, (REQUIRED: lowercase true/false, no quotes)
-  "reason": string        (REQUIRED: detailed explanation in quotes)
-}
+   {
+     "pid": number,           (REQUIRED: process ID as number)
+     "name": string,         (REQUIRED: process name in quotes)
+     "isMalicious": boolean, (REQUIRED: lowercase true/false, no quotes)
+     "reason": string        (REQUIRED: explanation in quotes)
+   }
 
 CRITICAL RESPONSE RULES:
 1. Every single process MUST be included in the output
@@ -92,7 +92,6 @@ CRITICAL RESPONSE RULES:
 6. No trailing commas
 7. Double quotes only for strings
 8. Boolean must be lowercase (true/false)
-9. Numbers must not be quoted
 
 Common legitimate resource patterns for reference:
 - Database servers: Steady memory, periodic CPU spikes

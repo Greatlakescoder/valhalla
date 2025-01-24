@@ -2,3 +2,4 @@ monitor:
   ollama_url: http://ai-ollama.tail8c6aba.ts.net:11434
   model: mistral
   context_size: 30000
+  offline: false

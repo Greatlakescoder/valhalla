@@ -7,6 +7,7 @@ use crate::{
     os_tooling::{AgentInput, MetadataTags, SystemScanner},
     utils::write_to_json,
 };
+use metrics::counter;
 use anyhow::Result;
 use serde_json::json;
 use std::collections::HashSet;
@@ -30,6 +31,7 @@ impl SystemMonitor {
         let mut results = scanner.scan_running_proccess()?;
         scanner.apply_attributes(&mut results);
         write_to_json(&results, "/home/fiz/workbench/valhalla/data/output.json")?;
+        counter!("scan.done").increment(1);
         Ok(results)
     }
 
@@ -215,10 +217,12 @@ impl SystemMonitor {
 
     pub async fn run(&self) -> Result<()> {
         let input = self.collect_info().expect("Failed to collect system info");
-        let results = self.call_ollama_name_verification(input.clone()).await?;
-        let _ = self
-            .call_ollama_resource_verification(input, results)
-            .await?;
+        if !self.settings.monitor.offline {
+            let results = self.call_ollama_name_verification(input.clone()).await?;
+            let _ = self
+                .call_ollama_resource_verification(input, results)
+                .await?;
+        }
 
         Ok(())
     }
