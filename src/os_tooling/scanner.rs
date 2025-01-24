@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use sysinfo::{CpuRefreshKind, Networks, Pid, ProcessRefreshKind, RefreshKind, System};
 use thiserror::Error;
-
+use crate::os_tooling::file_monitor::get_process_fd_count;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OsProcessInformation {
     pub pid: u32,
@@ -407,10 +407,14 @@ impl SystemScanner {
         );
 
         for process in sys.processes().values() {
-            let formatted_process: OsProcessInformation = process.try_into()?;
+            let mut formatted_process: OsProcessInformation = process.try_into()?;
             if !is_process_alive(&formatted_process) {
                 continue;
             }
+
+            // Add file descriptors
+            let fd_count = get_process_fd_count(formatted_process.pid)?;
+            formatted_process.fd_count = fd_count as u64;
 
             // Handle process based on whether it has a parent
             if let Some(parent_pid) = process.parent() {
