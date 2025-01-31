@@ -248,7 +248,8 @@ pub enum MetadataTags {
     TooManyFileDescriptors,
 }
 
-trait ProcessAttribute {
+
+trait ProcessAttribute: Send {
     // &mut interior mutability
     fn tag(&self, process: &mut OsProcessInformation);
     fn untag(&self, process: &mut OsProcessInformation);

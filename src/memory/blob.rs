@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::time::{Duration, Instant};
 
-struct Cache<K, V> {
+pub struct Cache<K, V> {
     data: HashMap<K, (V, Instant)>,
     ttl: Duration,
 }

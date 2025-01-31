@@ -1,5 +1,6 @@
 use crate::{
     configuration::Settings,
+    memory::blob::Cache,
     ollama::{
         get_name_verification_prompt, get_resource_verification_prompt, OllamaAgentOutput,
         OllamaClient, OllamaNameInput, OllamaRequest, OllamaResourceUsageInput,
@@ -7,30 +8,41 @@ use crate::{
     os_tooling::{AgentInput, MetadataTags, SystemScanner},
     utils::write_to_json,
 };
-use metrics::counter;
 use anyhow::Result;
+use chrono::Local;
+use metrics::counter;
 use serde_json::json;
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
+use tokio::sync::Mutex;
 pub struct SystemMonitor {
     ollama_client: OllamaClient,
+    storage: Arc<Mutex<Cache<String, Vec<AgentInput>>>>,
     settings: Settings,
 }
 
 impl SystemMonitor {
-    pub fn new(settings: Settings) -> Self {
+    pub fn new(
+        settings: Settings,
+        storage_blob: Arc<Mutex<Cache<String, Vec<AgentInput>>>>,
+    ) -> Self {
         let ollama_client = OllamaClient::new(settings.clone().monitor.ollama_url);
 
         Self {
             ollama_client,
             settings,
+            storage: storage_blob,
         }
     }
 
-    pub fn collect_info(&self) -> Result<Vec<AgentInput>> {
+    pub async fn collect_info(&self) -> Result<Vec<AgentInput>> {
         let scanner = SystemScanner::new();
         let mut results = scanner.scan_running_proccess()?;
         scanner.apply_attributes(&mut results);
-        write_to_json(&results, "/home/fiz/workbench/valhalla/data/output.json")?;
+        let mut storage_lock = self.storage.lock().await;
+
+        let timestamp = Local::now().to_string();
+        storage_lock.insert(timestamp, results.clone());
+        write_to_json(&results, "/home/fiz/workbench/valhalla/data/output.json").await?;
         counter!("scan.done").increment(1);
         Ok(results)
     }
@@ -79,7 +91,8 @@ impl SystemMonitor {
         let results: Vec<OllamaAgentOutput> =
             match serde_json::from_str::<Vec<OllamaAgentOutput>>(&resp.response) {
                 Ok(v) => {
-                    write_to_json(&v, "/home/fiz/workbench/valhalla/data/phase_1_output.json")?;
+                    write_to_json(&v, "/home/fiz/workbench/valhalla/data/phase_1_output.json")
+                        .await?;
                     // Get set of output PIDs
                     let output_pids: HashSet<u64> = v.iter().map(|result| result.pid).collect();
                     assert!(output_pids.is_subset(&input_pids));
@@ -92,7 +105,8 @@ impl SystemMonitor {
                     write_to_json(
                         &resp.response,
                         "/home/fiz/workbench/valhalla/data/phase_1_output.json",
-                    )?;
+                    )
+                    .await?;
 
                     // Attempt to clean/fix common JSON issues
                     let cleaned_response = attempt_json_cleanup(&resp.response);
@@ -182,7 +196,8 @@ impl SystemMonitor {
         let results: Vec<OllamaAgentOutput> =
             match serde_json::from_str::<Vec<OllamaAgentOutput>>(&resp.response) {
                 Ok(v) => {
-                    write_to_json(&v, "/home/fiz/workbench/valhalla/data/phase_2_output.json")?;
+                    write_to_json(&v, "/home/fiz/workbench/valhalla/data/phase_2_output.json")
+                        .await?;
                     // Get set of output PIDs
                     let output_pids: HashSet<u64> = v.iter().map(|result| result.pid).collect();
                     assert!(output_pids.is_subset(&input_pids));
@@ -195,7 +210,8 @@ impl SystemMonitor {
                     write_to_json(
                         &resp.response,
                         "/home/fiz/workbench/valhalla/data/phase_2_output.json",
-                    )?;
+                    )
+                    .await?;
 
                     // Attempt to clean/fix common JSON issues
                     let cleaned_response = attempt_json_cleanup(&resp.response);
@@ -216,7 +232,10 @@ impl SystemMonitor {
     }
 
     pub async fn run(&self) -> Result<()> {
-        let input = self.collect_info().expect("Failed to collect system info");
+        let input = self
+            .collect_info()
+            .await
+            .expect("Failed to collect system info");
         if !self.settings.monitor.offline {
             let results = self.call_ollama_name_verification(input.clone()).await?;
             let _ = self

@@ -1,11 +1,10 @@
 use clap::Parser;
 use metrics::counter;
 use odin::{
-    configuration::get_configuration,
-    monitor::SystemMonitor,
-    telemetry::{get_subscriber, init_subscriber},
+    configuration::get_configuration, memory::Cache, monitor::SystemMonitor, os_tooling::AgentInput, telemetry::{get_subscriber, init_subscriber}
 };
-use std::{error::Error, thread::sleep, time::Duration};
+use tokio::sync::Mutex;
+use std::{error::Error, sync::Arc, thread::sleep, time::Duration};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -34,12 +33,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     tracing::info!("System Monitor Starting");
     let settings = get_configuration().expect("Failed to read configuration.");
+    let storage: Cache<String, Vec<AgentInput>> = Cache::new(60);
+    let storage = Arc::new(Mutex::new(storage));
     
     // Spawn monitoring task that runs every 30 seconds
     tokio::spawn(async move {
         loop {
             tracing::info!("System Monitor running");
-            let monitor = SystemMonitor::new(settings.clone());
+            let monitor = SystemMonitor::new(settings.clone(),storage.clone());
             if let Err(e) = monitor.run().await {
                 tracing::error!("Monitor error: {}", e);
             }
