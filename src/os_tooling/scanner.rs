@@ -241,10 +241,10 @@ pub enum MetadataTags {
     TotalCpu,
     TotalMemory,
     TotalFileDescriptors,
-    NormalCpu,
+    CpuUsage,
     HighCpu,
     HighMemory,
-    NormalMemory,
+    MemoryUsage,
     TooManyFileDescriptors,
 }
 
@@ -275,7 +275,7 @@ impl ProcessAttribute for ResourceUsageAttribute {
         } else {
             process
                 .attributes
-                .insert(MetadataTags::NormalCpu, process.cpu.to_string());
+                .insert(MetadataTags::CpuUsage, process.cpu.to_string());
         }
         if process.memory_usage > self.memory_threshold {
             process
@@ -284,7 +284,7 @@ impl ProcessAttribute for ResourceUsageAttribute {
         } else {
             process
                 .attributes
-                .insert(MetadataTags::NormalMemory, process.memory_usage.to_string());
+                .insert(MetadataTags::MemoryUsage, process.memory_usage.to_string());
         }
     }
 
@@ -407,14 +407,14 @@ impl SystemScanner {
         );
 
         for process in sys.processes().values() {
-            let mut formatted_process: OsProcessInformation = process.try_into()?;
+            let formatted_process: OsProcessInformation = process.try_into()?;
             if !is_process_alive(&formatted_process) {
                 continue;
             }
 
-            // Add file descriptors
-            let fd_count = get_process_fd_count(formatted_process.pid)?;
-            formatted_process.fd_count = fd_count as u64;
+            // // Add file descriptors
+            // let fd_count = get_process_fd_count(formatted_process.pid)?;
+            // formatted_process.fd_count = fd_count as u64;
 
             // Handle process based on whether it has a parent
             if let Some(parent_pid) = process.parent() {
