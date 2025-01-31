@@ -1,3 +1,4 @@
+use axum::{extract::State, routing::get, Json, Router};
 use clap::Parser;
 use metrics::counter;
 use odin::{
@@ -27,6 +28,14 @@ struct Args {
 }
 
 // Implementation to convert reqwest::Response into ApiResponse
+async fn get_processes(
+    State(storage): State<Arc<Mutex<Cache<String, Vec<AgentInput>>>>>
+) -> Json<Vec<Vec<AgentInput>>> {
+    let cache = storage.lock().await;
+    let data = get_cached_data(&*cache);
+    Json(data)
+}
+
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -53,17 +62,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    let lookup_cache = storage.clone();
-    tokio::spawn(async move {
-        loop {
-            tracing::info!("System Cache running");
-            let storage_lock = lookup_cache.lock().await;
-            // Derefernce here otherwise the function has to take a mutex guard
-            get_cached_data(&*storage_lock);
-          
-            tokio::time::sleep(Duration::from_secs(5)).await;
-        }
-    });
+    let app = Router::new()
+        .route("/processes", get(get_processes))
+        .with_state(storage);
+
+    // run our app with hyper, listening globally on port 3000
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    axum::serve(listener, app).await.unwrap();
 
     // Keep main process running until ctrl-c
     tokio::signal::ctrl_c().await?;

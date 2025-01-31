@@ -40,18 +40,21 @@ where
     }
 }
 
-pub fn get_cached_data<K, V>(cache: &Cache<K, V>)
+pub fn get_cached_data<K, V>(cache: &Cache<K, V>) -> Vec<V>
 where
     K: Hash + Eq + Clone,
     V: Clone + Debug,
 {
     let keys: Vec<_> = cache.data.keys().cloned().collect();
+    let mut values = Vec::new();
+    
     for i in 0..=5 {
         if i < keys.len() {
             if let Some(value) = cache.get(&keys[i]) {
-                println!("{:?}", value);
+                values.push(value);
             }
         }
     }
+    values
 }
 
