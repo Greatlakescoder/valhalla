@@ -1,4 +1,9 @@
-use axum::{extract::State, routing::get, Json, Router};
+use axum::{
+    extract::State,
+    http::{HeaderValue, Method},
+    routing::get,
+    Json, Router,
+};
 use clap::Parser;
 use metrics::counter;
 use odin::{
@@ -8,8 +13,10 @@ use odin::{
     os_tooling::AgentInput,
     telemetry::{get_subscriber, init_subscriber},
 };
+
 use std::{error::Error, sync::Arc, thread::sleep, time::Duration};
 use tokio::sync::Mutex;
+use tower_http::cors::{Any, CorsLayer};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -29,18 +36,21 @@ struct Args {
 
 // Implementation to convert reqwest::Response into ApiResponse
 async fn get_processes(
-    State(storage): State<Arc<Mutex<Cache<String, Vec<AgentInput>>>>>
+    State(storage): State<Arc<Mutex<Cache<String, Vec<AgentInput>>>>>,
 ) -> Json<Vec<Vec<AgentInput>>> {
     let cache = storage.lock().await;
     let data = get_cached_data(&*cache);
     Json(data)
 }
 
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // let args = Args::parse();
-
+    // In your main function
+    let cors = CorsLayer::new()
+        .allow_origin("http://localhost:5173".parse::<HeaderValue>().unwrap())
+        .allow_methods([Method::GET])
+        .allow_headers(Any);
     let subscriber = get_subscriber("odin".into(), "info".into(), std::io::stdout);
     init_subscriber(subscriber);
 
@@ -64,6 +74,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let app = Router::new()
         .route("/processes", get(get_processes))
+        .layer(cors)
         .with_state(storage);
 
     // run our app with hyper, listening globally on port 3000
