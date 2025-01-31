@@ -6,7 +6,6 @@ use crate::{
         OllamaClient, OllamaNameInput, OllamaRequest, OllamaResourceUsageInput,
     },
     os_tooling::{AgentInput, MetadataTags, SystemScanner},
-    utils::write_to_json,
 };
 use anyhow::Result;
 use chrono::Local;
@@ -42,7 +41,6 @@ impl SystemMonitor {
 
         let timestamp = Local::now().to_string();
         storage_lock.insert(timestamp, results.clone());
-        write_to_json(&results, "/home/fiz/workbench/valhalla/data/output.json").await?;
         counter!("scan.done").increment(1);
         Ok(results)
     }
@@ -91,8 +89,6 @@ impl SystemMonitor {
         let results: Vec<OllamaAgentOutput> =
             match serde_json::from_str::<Vec<OllamaAgentOutput>>(&resp.response) {
                 Ok(v) => {
-                    write_to_json(&v, "/home/fiz/workbench/valhalla/data/phase_1_output.json")
-                        .await?;
                     // Get set of output PIDs
                     let output_pids: HashSet<u64> = v.iter().map(|result| result.pid).collect();
                     assert!(output_pids.is_subset(&input_pids));
@@ -102,11 +98,6 @@ impl SystemMonitor {
                     // Log the error details for debugging
                     tracing::error!("JSON parsing error: {}", e);
                     tracing::debug!("Raw response: {}", &resp.response);
-                    write_to_json(
-                        &resp.response,
-                        "/home/fiz/workbench/valhalla/data/phase_1_output.json",
-                    )
-                    .await?;
 
                     // Attempt to clean/fix common JSON issues
                     let cleaned_response = attempt_json_cleanup(&resp.response);
@@ -196,8 +187,6 @@ impl SystemMonitor {
         let results: Vec<OllamaAgentOutput> =
             match serde_json::from_str::<Vec<OllamaAgentOutput>>(&resp.response) {
                 Ok(v) => {
-                    write_to_json(&v, "/home/fiz/workbench/valhalla/data/phase_2_output.json")
-                        .await?;
                     // Get set of output PIDs
                     let output_pids: HashSet<u64> = v.iter().map(|result| result.pid).collect();
                     assert!(output_pids.is_subset(&input_pids));
@@ -207,11 +196,6 @@ impl SystemMonitor {
                     // Log the error details for debugging
                     tracing::error!("JSON parsing error: {}", e);
                     tracing::debug!("Raw response: {}", &resp.response);
-                    write_to_json(
-                        &resp.response,
-                        "/home/fiz/workbench/valhalla/data/phase_2_output.json",
-                    )
-                    .await?;
 
                     // Attempt to clean/fix common JSON issues
                     let cleaned_response = attempt_json_cleanup(&resp.response);

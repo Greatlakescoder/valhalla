@@ -4,12 +4,12 @@ import ProcessMonitor from './components/ProcessMonitor.jsx';
 function App() {
   const [processes, setProcesses] = useState([]); // Initialize with empty array
   const [loading, setLoading] = useState(true);  // Add loading state
-
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
   useEffect(() => {
     const fetchProcesses = async () => {
       try {
         setLoading(true);  // Set loading before fetch
-        const response = await fetch('http://localhost:3000/processes');
+        const response = await fetch(`${API_URL}/processes`);
         const data = await response.json();
         // Only set the processes if we got valid data
         if (data && data[0]) {

@@ -1,0 +1,29 @@
+version: '3.8'
+services:
+  odin:
+    build: 
+      context: .
+      dockerfile: Dockerfile.odin
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - odin
+    environment:
+      - VITE_API_URL=http://localhost:3000  
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

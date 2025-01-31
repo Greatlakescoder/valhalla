@@ -8,6 +8,7 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  ResponsiveContainer, // Add this line
 } from 'recharts';
 import { ChevronDown, ChevronRight, Cpu, Database } from "lucide-react";
 
