@@ -2,7 +2,7 @@ use std::{fs::File, io::BufWriter, path::Path};
 
 use serde::Serialize;
 
-pub fn write_to_json<T: Serialize, P: AsRef<Path>>(data: &T, path: P) -> std::io::Result<()> {
+pub async fn write_to_json<T: Serialize, P: AsRef<Path>>(data: &T, path: P) -> std::io::Result<()> {
     // Create file and wrap in buffered writer
     let file = File::create(path)?;
     let writer = BufWriter::new(file);

@@ -1,8 +1,10 @@
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::hash::Hash;
+use std::ops::Range;
 use std::time::{Duration, Instant};
 
-struct Cache<K, V> {
+pub struct Cache<K, V> {
     data: HashMap<K, (V, Instant)>,
     ttl: Duration,
 }
@@ -38,16 +40,18 @@ where
     }
 }
 
+pub fn get_cached_data<K, V>(cache: &Cache<K, V>)
+where
+    K: Hash + Eq + Clone,
+    V: Clone + Debug,
+{
+    let keys: Vec<_> = cache.data.keys().cloned().collect();
+    for i in 0..=5 {
+        if i < keys.len() {
+            if let Some(value) = cache.get(&keys[i]) {
+                println!("{:?}", value);
+            }
+        }
+    }
+}
 
-// We can also create functions that work with our cache
-// fn process_cached_data<K, V, F>(cache: &mut Cache<K, V>, key: K, generator: F)
-// where
-//     K: Hash + Eq + Clone,
-//     V: Clone,
-//     F: FnOnce() -> V,
-// {
-//     if cache.get(&key).is_none() {
-//         let value = generator();
-//         cache.insert(key, value);
-//     }
-// }

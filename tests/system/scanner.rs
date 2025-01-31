@@ -1,18 +1,24 @@
+use std::sync::Arc;
+
 // tests/scanner_test.rs
 use crate::helpers::TestEnvironment;
-use odin::{configuration::get_configuration, monitor::SystemMonitor};
+use odin::{configuration::get_configuration, memory::Cache, monitor::SystemMonitor, os_tooling::AgentInput};
+use tokio::sync::Mutex;
 
-#[test]
-fn test_process_scanning() {
+#[tokio::test]
+async fn test_process_scanning() {
     // Set a specific prefix for this test
     let configuration = {
         
         get_configuration().expect("Failed to read configuration.")
     };
-    let system_scanner = SystemMonitor::new(configuration);
+    let storage: Cache<String, Vec<AgentInput>> = Cache::new(60);
+    let storage = Arc::new(Mutex::new(storage));
+    
+    let system_scanner = SystemMonitor::new(configuration,storage);
     TestEnvironment::setup("Loki".to_string());
     let processes_found = system_scanner
-        .collect_info()
+        .collect_info().await
         .expect("Failed to collect test proccesses");
     let test_runner_pid = std::process::id();
     for p in processes_found {
