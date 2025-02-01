@@ -48,6 +48,7 @@ where
     let keys: Vec<_> = cache.data.keys().cloned().collect();
     let mut values = Vec::new();
     
+    
     for i in 0..=5 {
         if i < keys.len() {
             if let Some(value) = cache.get(&keys[i]) {
@@ -57,4 +58,5 @@ where
     }
     values
 }
+
 

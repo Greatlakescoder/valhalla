@@ -38,7 +38,7 @@ struct Args {
 async fn get_processes(
     State(storage): State<Arc<Mutex<Cache<String, Vec<AgentInput>>>>>,
 ) -> Json<Vec<Vec<AgentInput>>> {
-    let cache = storage.lock().await;
+    let  cache = storage.lock().await;
     let data = get_cached_data(&*cache);
     Json(data)
 }

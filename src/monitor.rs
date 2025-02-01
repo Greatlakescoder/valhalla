@@ -38,6 +38,7 @@ impl SystemMonitor {
         let mut results = scanner.scan_running_proccess()?;
         scanner.apply_attributes(&mut results);
         let mut storage_lock = self.storage.lock().await;
+        storage_lock.remove_expired();
 
         let timestamp = Local::now().to_string();
         storage_lock.insert(timestamp, results.clone());
