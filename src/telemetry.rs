@@ -3,7 +3,6 @@ use std::time::Duration;
 
 use metrics::counter;
 use metrics_exporter_tcp::TcpBuilder;
-use opentelemetry::sdk::trace::Config;
 use tracing::subscriber::set_global_default;
 use tracing::Subscriber;
 use tracing_log::LogTracer;

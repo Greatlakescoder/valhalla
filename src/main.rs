@@ -5,7 +5,6 @@ use axum::{
     Json, Router,
 };
 use clap::Parser;
-use metrics::counter;
 use odin::{
     configuration::get_configuration,
     memory::{get_cached_data, Cache},
@@ -14,7 +13,7 @@ use odin::{
     telemetry::{get_subscriber, init_subscriber},
 };
 
-use std::{error::Error, sync::Arc, thread::sleep, time::Duration};
+use std::{error::Error, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 use tower_http::cors::{Any, CorsLayer};
 

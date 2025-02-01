@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
-use std::ops::Range;
 use std::time::{Duration, Instant};
 
 pub struct Cache<K, V> {

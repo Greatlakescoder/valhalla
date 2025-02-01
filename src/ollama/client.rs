@@ -27,6 +27,6 @@ impl OllamaClient {
         };
 
         tracing::debug!("Response: {}", &resp.response);
-        return Ok(resp)
+        Ok(resp)
     }
 }

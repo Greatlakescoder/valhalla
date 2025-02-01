@@ -115,7 +115,7 @@ impl SystemMonitor {
         let filtered_results: Vec<OllamaAgentOutput> =
             results.into_iter().filter(|x| x.is_malicious).collect();
 
-        return Ok(filtered_results);
+        Ok(filtered_results)
     }
 
     async fn call_ollama_resource_verification(
@@ -213,7 +213,7 @@ impl SystemMonitor {
         let filtered_results: Vec<OllamaAgentOutput> =
             results.into_iter().filter(|x| x.is_malicious).collect();
 
-        return Ok(filtered_results);
+        Ok(filtered_results)
     }
 
     pub async fn run(&self) -> Result<()> {

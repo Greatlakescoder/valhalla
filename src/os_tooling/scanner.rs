@@ -5,9 +5,8 @@ use metrics::counter;
 use serde::{Deserialize, Serialize};
 
 use std::convert::TryFrom;
-use sysinfo::{CpuRefreshKind, Networks, Pid, ProcessRefreshKind, RefreshKind, System};
+use sysinfo::{CpuRefreshKind, Networks, Pid, ProcessRefreshKind, System};
 use thiserror::Error;
-use crate::os_tooling::file_monitor::get_process_fd_count;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OsProcessInformation {
     pub pid: u32,
