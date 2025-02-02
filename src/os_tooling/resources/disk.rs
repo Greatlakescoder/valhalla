@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sysinfo::{Disks, RefreshKind, System};
+use sysinfo::{Disks, System};
 
 #[derive(Serialize, Deserialize)]
 pub struct DiskGroup {
@@ -46,5 +46,5 @@ pub fn get_disk_usage() -> DiskGroup {
         });
     }
 
-    return DiskGroup { disks: disk_group };
+    DiskGroup { disks: disk_group }
 }

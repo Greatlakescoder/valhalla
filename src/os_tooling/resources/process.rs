@@ -1,10 +1,8 @@
-use core::fmt;
 use std::{collections::HashMap, ffi::OsString};
 
 use serde::{Deserialize, Serialize};
 
 use std::convert::TryFrom;
-use sysinfo::{CpuRefreshKind, Networks, System};
 use thiserror::Error;
 
 use super::MetadataTags;

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sysinfo::{MacAddr, Networks, System};
+use sysinfo::{Networks, System};
 
 #[derive(Serialize, Deserialize)]
 pub struct NetworkInterfaceGroup {
