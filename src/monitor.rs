@@ -1,9 +1,13 @@
 use crate::{
-    cache::blob::Cache, configuration::Settings, ollama::{
+    cache::blob::Cache,
+    configuration::Settings,
+    ollama::{
         get_name_verification_prompt, get_resource_verification_prompt, OllamaAgentOutput,
         OllamaClient, OllamaNameInput, OllamaRequest, OllamaResourceUsageInput,
-    }, os_tooling::{process::OsProcessGroup, MetadataTags, SystemScanner}
-
+    },
+    os_tooling::{
+        cpu::{get_current_cpu_usage, CPUGroup}, disk::{get_disk_usage, DiskGroup}, network::{get_network_information, NetworkInterfaceGroup}, process::OsProcessGroup, MetadataTags, SystemScanner
+    },
 };
 use anyhow::Result;
 use chrono::Local;
@@ -32,22 +36,20 @@ impl SystemMonitor {
     }
 
     // This should collect CPU and Memory
-    pub async fn monitor_resource_usage() {
-
-        todo!()
+    pub async fn monitor_resource_usage() -> CPUGroup {
+        get_current_cpu_usage()
     }
 
     // This should collect disk usage across disks
 
-    pub async fn monitor_disk_usage() {
-        todo!()
+    pub async fn monitor_disk_usage() -> DiskGroup {
+        get_disk_usage()
     }
 
     // This should collect network usage
-    pub async fn monitor_network_usage() {
-        todo!()
+    pub async fn monitor_network_usage() -> NetworkInterfaceGroup {
+        get_network_information()
     }
-    
 
     pub async fn monitor_processes(&self) -> Result<Vec<OsProcessGroup>> {
         let scanner = SystemScanner::new();

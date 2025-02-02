@@ -1,22 +1,39 @@
-use sysinfo::{Networks, System};
+use serde::{Deserialize, Serialize};
+use sysinfo::{MacAddr, Networks, System};
 
-pub fn get_network_information() {
+#[derive(Serialize, Deserialize)]
+pub struct NetworkInterfaceGroup {
+    pub interfaces: Vec<NetworkInterface>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct NetworkInterface {
+    pub name: String,
+    pub received: u64,
+    pub transmitted: u64,
+    pub mac_address: String,
+    pub packets_received: u64,
+    pub packets_transmitted: u64,
+}
+
+pub fn get_network_information() -> NetworkInterfaceGroup {
     let mut sys = System::new_all();
     sys.refresh_all();
     let networks = Networks::new_with_refreshed_list();
-    let users = sysinfo::Users::new();
-    for user in users.list() {
-        println!("{} is in {} groups", user.name(), user.groups().len());
-    }
-    println!("=> networks:");
+
+    let mut interfaces: Vec<NetworkInterface> = vec![];
+
     for (interface_name, data) in &networks {
-        println!(
-            "{interface_name}: {}/{} B  Mac Address: {}, Packets {}/{}",
-            data.received(),
-            data.transmitted(),
-            data.mac_address(),
-            data.packets_received(),
-            data.packets_transmitted()
-        );
+        interfaces.push(NetworkInterface {
+            name: interface_name.to_string(),
+            received: data.received(),
+            transmitted: data.transmitted(),
+            mac_address: data.mac_address().to_string(),
+            packets_received: data.packets_received(),
+            packets_transmitted: data.packets_transmitted(),
+        });
+    }
+    NetworkInterfaceGroup {
+        interfaces,
     }
 }

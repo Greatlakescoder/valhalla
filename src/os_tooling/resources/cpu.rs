@@ -13,6 +13,12 @@ pub struct CPUResource {
     pub usage: f32,
 }
 
+impl CPUResource {
+    pub fn to_json_string(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(self)
+    }
+}
+
 pub fn get_current_cpu_usage() -> CPUGroup {
     println!("Get Current CPU Start");
     let mut s = System::new_with_specifics(

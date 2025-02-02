@@ -9,6 +9,12 @@ pub struct SystemMemory {
     used_swap: u64,
 }
 
+impl SystemMemory {
+    pub fn to_json_string(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(self)
+    }
+}
+
 pub fn get_system_memory() -> SystemMemory {
     let mut sys = System::new_all();
 
