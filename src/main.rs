@@ -3,7 +3,7 @@ use odin::{
     configuration::get_configuration,
     cache::Cache,
     monitor::SystemMonitor,
-    os_tooling::OsProcessGroup,
+    os_tooling::process::OsProcessGroup,
     telemetry::{get_subscriber, init_subscriber},
     web::app::start_server,
 };

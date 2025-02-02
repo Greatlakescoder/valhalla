@@ -1,11 +1,9 @@
 use crate::{
-    configuration::Settings,
-    cache::blob::Cache,
-    ollama::{
+    cache::blob::Cache, configuration::Settings, ollama::{
         get_name_verification_prompt, get_resource_verification_prompt, OllamaAgentOutput,
         OllamaClient, OllamaNameInput, OllamaRequest, OllamaResourceUsageInput,
-    },
-    os_tooling::{OsProcessGroup, MetadataTags, SystemScanner},
+    }, os_tooling::{process::OsProcessGroup, MetadataTags, SystemScanner}
+
 };
 use anyhow::Result;
 use chrono::Local;
@@ -33,7 +31,25 @@ impl SystemMonitor {
         }
     }
 
-    pub async fn collect_info(&self) -> Result<Vec<OsProcessGroup>> {
+    // This should collect CPU and Memory
+    pub async fn monitor_resource_usage() {
+
+        todo!()
+    }
+
+    // This should collect disk usage across disks
+
+    pub async fn monitor_disk_usage() {
+        todo!()
+    }
+
+    // This should collect network usage
+    pub async fn monitor_network_usage() {
+        todo!()
+    }
+    
+
+    pub async fn monitor_processes(&self) -> Result<Vec<OsProcessGroup>> {
         let scanner = SystemScanner::new();
         let mut results = scanner.scan_running_proccess()?;
         scanner.apply_attributes(&mut results);
@@ -218,7 +234,7 @@ impl SystemMonitor {
 
     pub async fn run(&self) -> Result<()> {
         let input = self
-            .collect_info()
+            .monitor_processes()
             .await
             .expect("Failed to collect system info");
         if !self.settings.monitor.offline {

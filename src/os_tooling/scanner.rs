@@ -4,9 +4,10 @@ use metrics::counter;
 
 use sysinfo::{Pid, ProcessRefreshKind, System};
 
-use crate::os_tooling::{is_process_alive, OsProcessInformation};
+use crate::os_tooling::process::{is_process_alive, OsProcessInformation};
 
-use super::{OsProcessGroup, MetadataTags, ProcessAttribute, ResourceUsageAttribute};
+use super::{process::{OsProcessGroup, ProcessAttribute, ResourceUsageAttribute}, MetadataTags};
+
 ///
 /// I think in order to get the model to act how we want, we need to label things and send it to multiple agents
 /// We can implement this with a tagging methodolgy similar to how EC2 does it or how you would label data in a csv
