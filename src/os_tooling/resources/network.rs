@@ -16,9 +16,8 @@ pub struct NetworkInterface {
     pub packets_transmitted: u64,
 }
 
-pub fn get_network_information() -> NetworkInterfaceGroup {
-    let mut sys = System::new_all();
-    sys.refresh_all();
+pub fn get_network_information(system: &mut System) -> NetworkInterfaceGroup {
+    system.refresh_all();
     let networks = Networks::new_with_refreshed_list();
 
     let mut interfaces: Vec<NetworkInterface> = vec![];
@@ -33,7 +32,5 @@ pub fn get_network_information() -> NetworkInterfaceGroup {
             packets_transmitted: data.packets_transmitted(),
         });
     }
-    NetworkInterfaceGroup {
-        interfaces,
-    }
+    NetworkInterfaceGroup { interfaces }
 }

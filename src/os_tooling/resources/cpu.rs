@@ -19,9 +19,10 @@ impl CPUResource {
     }
 }
 
-pub fn get_current_cpu_usage() -> CPUGroup {
+pub fn get_current_cpu_usage(system: &mut System) -> CPUGroup {
     println!("Get Current CPU Start");
-    let mut s = System::new_with_specifics(
+
+    system.refresh_specifics(
         sysinfo::RefreshKind::everything().with_cpu(CpuRefreshKind::everything()),
     );
 
@@ -30,11 +31,11 @@ pub fn get_current_cpu_usage() -> CPUGroup {
     std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
     // Refresh CPUs again.
     println!("Get Current CPU Refresh");
-    s.refresh_cpu_all();
+    system.refresh_cpu_all();
     println!("Get Current CPU Logic");
 
     let mut resp: Vec<CPUResource> = vec![];
-    for cpu in s.cpus() {
+    for cpu in system.cpus() {
         resp.push(CPUResource {
             name: cpu.name().to_string(),
             brand: cpu.brand().to_string(),

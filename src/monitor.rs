@@ -6,19 +6,26 @@ use crate::{
         OllamaClient, OllamaNameInput, OllamaRequest, OllamaResourceUsageInput,
     },
     os_tooling::{
-        cpu::{get_current_cpu_usage, CPUGroup}, disk::{get_disk_usage, DiskGroup}, network::{get_network_information, NetworkInterfaceGroup}, process::OsProcessGroup, MetadataTags, SystemScanner
+        cpu::{get_current_cpu_usage, CPUGroup},
+        disk::{get_disk_usage, DiskGroup},
+        memory::{get_system_memory, SystemMemory},
+        network::{get_network_information, NetworkInterfaceGroup},
+        process::OsProcessGroup,
+        MetadataTags, SystemScanner,
     },
 };
 use anyhow::Result;
 use chrono::Local;
 use metrics::counter;
 use serde_json::json;
+use sysinfo::System;
 use std::{collections::HashSet, sync::Arc};
 use tokio::sync::Mutex;
 pub struct SystemMonitor {
     ollama_client: OllamaClient,
     storage: Arc<Mutex<Cache<String, Vec<OsProcessGroup>>>>,
     settings: Settings,
+    system: System
 }
 
 impl SystemMonitor {
@@ -27,28 +34,32 @@ impl SystemMonitor {
         storage_blob: Arc<Mutex<Cache<String, Vec<OsProcessGroup>>>>,
     ) -> Self {
         let ollama_client = OllamaClient::new(settings.clone().monitor.ollama_url);
-
+        let system = System::new_all();
         Self {
             ollama_client,
             settings,
             storage: storage_blob,
+            system
         }
     }
 
     // This should collect CPU and Memory
-    pub async fn monitor_resource_usage() -> CPUGroup {
-        get_current_cpu_usage()
+    pub async fn monitor_cpu_usage(&mut self) -> CPUGroup {
+        get_current_cpu_usage(&mut self.system)
+    }
+
+    pub async fn monitor_memory_usage(&mut self) -> SystemMemory {
+        get_system_memory(&mut self.system)
     }
 
     // This should collect disk usage across disks
-
-    pub async fn monitor_disk_usage() -> DiskGroup {
-        get_disk_usage()
+    pub async fn monitor_disk_usage(&mut self) -> DiskGroup {
+        get_disk_usage(&mut self.system)
     }
 
     // This should collect network usage
-    pub async fn monitor_network_usage() -> NetworkInterfaceGroup {
-        get_network_information()
+    pub async fn monitor_network_usage(&mut self) -> NetworkInterfaceGroup {
+        get_network_information(&mut self.system)
     }
 
     pub async fn monitor_processes(&self) -> Result<Vec<OsProcessGroup>> {
@@ -234,15 +245,26 @@ impl SystemMonitor {
         Ok(filtered_results)
     }
 
-    pub async fn run(&self) -> Result<()> {
-        let input = self
+    pub async fn run(&mut self) -> Result<()> {
+        let process_scan = self
             .monitor_processes()
             .await
             .expect("Failed to collect system info");
+
+        let cpu_scan = self.monitor_cpu_usage().await;
+
+        let network_scan = self.monitor_network_usage().await;
+
+        let disk_scan = self.monitor_disk_usage().await;
+
+        let memory_scan = self.monitor_memory_usage().await;
+
         if !self.settings.monitor.offline {
-            let results = self.call_ollama_name_verification(input.clone()).await?;
+            let results = self
+                .call_ollama_name_verification(process_scan.clone())
+                .await?;
             let _ = self
-                .call_ollama_resource_verification(input, results)
+                .call_ollama_resource_verification(process_scan, results)
                 .await?;
         }
 

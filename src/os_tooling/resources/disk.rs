@@ -14,8 +14,8 @@ pub struct DiskResource {
     pub usage: f64,
 }
 
-pub fn get_disk_usage() -> DiskGroup {
-    System::new_all();
+pub fn get_disk_usage(system: &mut System) -> DiskGroup {
+   
 
     // We display all disks' information:
 

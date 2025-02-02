@@ -15,14 +15,12 @@ impl SystemMemory {
     }
 }
 
-pub fn get_system_memory() -> SystemMemory {
-    let mut sys = System::new_all();
-
-    sys.refresh_all();
+pub fn get_system_memory(system: &mut System) -> SystemMemory {
+    system.refresh_all();
     SystemMemory {
-        total_memory: sys.total_memory() / 1024 / 1024,
-        used_memory: sys.used_memory() / 1024 / 1024,
-        total_swap: sys.total_swap() / 1024 / 1024,
-        used_swap: sys.used_swap() / 1024 / 1024,
+        total_memory: system.total_memory() / 1024 / 1024,
+        used_memory: system.used_memory() / 1024 / 1024,
+        total_swap: system.total_swap() / 1024 / 1024,
+        used_swap: system.used_swap() / 1024 / 1024,
     }
 }
