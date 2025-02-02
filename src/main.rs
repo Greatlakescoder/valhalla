@@ -9,7 +9,7 @@ use odin::{
     configuration::get_configuration,
     memory::{get_cached_data, Cache},
     monitor::SystemMonitor,
-    os_tooling::AgentInput,
+    os_tooling::OsProcessGroup,
     telemetry::{get_subscriber, init_subscriber},
 };
 
@@ -35,8 +35,8 @@ struct Args {
 
 // Implementation to convert reqwest::Response into ApiResponse
 async fn get_processes(
-    State(storage): State<Arc<Mutex<Cache<String, Vec<AgentInput>>>>>,
-) -> Json<Vec<Vec<AgentInput>>> {
+    State(storage): State<Arc<Mutex<Cache<String, Vec<OsProcessGroup>>>>>,
+) -> Json<Vec<Vec<OsProcessGroup>>> {
     let  cache = storage.lock().await;
     let data = get_cached_data(&*cache);
     Json(data)
@@ -55,7 +55,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     tracing::info!("System Monitor Starting");
     let settings = get_configuration().expect("Failed to read configuration.");
-    let blob_storage: Cache<String, Vec<AgentInput>> = Cache::new(60);
+    let blob_storage: Cache<String, Vec<OsProcessGroup>> = Cache::new(60);
     let storage = Arc::new(Mutex::new(blob_storage));
 
     // Spawn monitoring task that runs every 30 seconds

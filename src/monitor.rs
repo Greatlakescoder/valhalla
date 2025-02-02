@@ -5,7 +5,7 @@ use crate::{
         get_name_verification_prompt, get_resource_verification_prompt, OllamaAgentOutput,
         OllamaClient, OllamaNameInput, OllamaRequest, OllamaResourceUsageInput,
     },
-    os_tooling::{AgentInput, MetadataTags, SystemScanner},
+    os_tooling::{OsProcessGroup, MetadataTags, SystemScanner},
 };
 use anyhow::Result;
 use chrono::Local;
@@ -15,14 +15,14 @@ use std::{collections::HashSet, sync::Arc};
 use tokio::sync::Mutex;
 pub struct SystemMonitor {
     ollama_client: OllamaClient,
-    storage: Arc<Mutex<Cache<String, Vec<AgentInput>>>>,
+    storage: Arc<Mutex<Cache<String, Vec<OsProcessGroup>>>>,
     settings: Settings,
 }
 
 impl SystemMonitor {
     pub fn new(
         settings: Settings,
-        storage_blob: Arc<Mutex<Cache<String, Vec<AgentInput>>>>,
+        storage_blob: Arc<Mutex<Cache<String, Vec<OsProcessGroup>>>>,
     ) -> Self {
         let ollama_client = OllamaClient::new(settings.clone().monitor.ollama_url);
 
@@ -33,7 +33,7 @@ impl SystemMonitor {
         }
     }
 
-    pub async fn collect_info(&self) -> Result<Vec<AgentInput>> {
+    pub async fn collect_info(&self) -> Result<Vec<OsProcessGroup>> {
         let scanner = SystemScanner::new();
         let mut results = scanner.scan_running_proccess()?;
         scanner.apply_attributes(&mut results);
@@ -51,7 +51,7 @@ impl SystemMonitor {
     //     // Generate report
     async fn call_ollama_name_verification(
         &self,
-        system_info: Vec<AgentInput>,
+        system_info: Vec<OsProcessGroup>,
     ) -> Result<Vec<OllamaAgentOutput>> {
         let system_prompt = get_name_verification_prompt();
 
@@ -120,7 +120,7 @@ impl SystemMonitor {
 
     async fn call_ollama_resource_verification(
         &self,
-        system_info: Vec<AgentInput>,
+        system_info: Vec<OsProcessGroup>,
         name_verification_results: Vec<OllamaAgentOutput>,
     ) -> Result<Vec<OllamaAgentOutput>> {
         let system_prompt = get_resource_verification_prompt();

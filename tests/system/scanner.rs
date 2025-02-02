@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 // tests/scanner_test.rs
 use crate::helpers::TestEnvironment;
-use odin::{configuration::get_configuration, memory::Cache, monitor::SystemMonitor, os_tooling::AgentInput};
+use odin::{configuration::get_configuration, memory::Cache, monitor::SystemMonitor, os_tooling::OsProcessGroup};
 use tokio::sync::Mutex;
 
 #[tokio::test]
@@ -12,7 +12,7 @@ async fn test_process_scanning() {
         
         get_configuration().expect("Failed to read configuration.")
     };
-    let storage: Cache<String, Vec<AgentInput>> = Cache::new(60);
+    let storage: Cache<String, Vec<OsProcessGroup>> = Cache::new(60);
     let storage = Arc::new(Mutex::new(storage));
     
     let system_scanner = SystemMonitor::new(configuration,storage);
