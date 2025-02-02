@@ -7,10 +7,11 @@ use axum::{
 use clap::Parser;
 use odin::{
     configuration::get_configuration,
-    memory::{get_cached_data, Cache},
+    memory::Cache,
     monitor::SystemMonitor,
     os_tooling::OsProcessGroup,
     telemetry::{get_subscriber, init_subscriber},
+    web::app::start_server,
 };
 
 use std::{error::Error, sync::Arc, time::Duration};
@@ -33,23 +34,11 @@ struct Args {
     query: String,
 }
 
-// Implementation to convert reqwest::Response into ApiResponse
-async fn get_processes(
-    State(storage): State<Arc<Mutex<Cache<String, Vec<OsProcessGroup>>>>>,
-) -> Json<Vec<Vec<OsProcessGroup>>> {
-    let  cache = storage.lock().await;
-    let data = get_cached_data(&*cache);
-    Json(data)
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // let args = Args::parse();
     // In your main function
-    let cors = CorsLayer::new()
-        .allow_origin("http://localhost:5173".parse::<HeaderValue>().unwrap())
-        .allow_methods([Method::GET])
-        .allow_headers(Any);
+
     let subscriber = get_subscriber("odin".into(), "info".into(), std::io::stdout);
     init_subscriber(subscriber);
 
@@ -71,14 +60,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    let app = Router::new()
-        .route("/processes", get(get_processes))
-        .layer(cors)
-        .with_state(storage);
-
-    // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    let web_cache = storage.clone();
+    tokio::spawn(async move {
+        loop {
+            tracing::info!("Web Server running");
+            start_server(web_cache.clone()).await;
+        }
+    });
 
     // Keep main process running until ctrl-c
     tokio::signal::ctrl_c().await?;

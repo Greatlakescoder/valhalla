@@ -5,3 +5,4 @@ pub mod memory;
 pub mod configuration;
 pub mod monitor;
 pub mod utils;
+pub mod web;
