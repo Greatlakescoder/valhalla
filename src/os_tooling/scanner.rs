@@ -1,12 +1,8 @@
-use core::fmt;
-use std::{collections::HashMap, ffi::OsString, time::Duration};
+use std::{collections::HashMap, time::Duration};
 
 use metrics::counter;
-use serde::{Deserialize, Serialize};
 
-use std::convert::TryFrom;
-use sysinfo::{CpuRefreshKind, Networks, Pid, ProcessRefreshKind, System};
-use thiserror::Error;
+use sysinfo::{Pid, ProcessRefreshKind, System};
 
 use crate::os_tooling::{is_process_alive, OsProcessInformation};
 

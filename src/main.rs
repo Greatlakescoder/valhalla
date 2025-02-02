@@ -1,9 +1,3 @@
-use axum::{
-    extract::State,
-    http::{HeaderValue, Method},
-    routing::get,
-    Json, Router,
-};
 use clap::Parser;
 use odin::{
     configuration::get_configuration,
@@ -16,7 +10,6 @@ use odin::{
 
 use std::{error::Error, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
-use tower_http::cors::{Any, CorsLayer};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]

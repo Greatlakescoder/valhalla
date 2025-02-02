@@ -1,9 +1,7 @@
 // Implementation to convert reqwest::Response into ApiResponse
 use axum::{
     extract::State,
-    http::{HeaderValue, Method},
-    routing::get,
-    Json, Router,
+    Json,
 };
 
 use std::sync::Arc;

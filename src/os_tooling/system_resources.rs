@@ -1,11 +1,10 @@
 use core::fmt;
-use std::{collections::HashMap, ffi::OsString, time::Duration};
+use std::{collections::HashMap, ffi::OsString};
 
-use metrics::counter;
 use serde::{Deserialize, Serialize};
 
 use std::convert::TryFrom;
-use sysinfo::{CpuRefreshKind, Networks, Pid, ProcessRefreshKind, System};
+use sysinfo::{CpuRefreshKind, Networks, System};
 use thiserror::Error;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OsProcessInformation {

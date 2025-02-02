@@ -1,24 +1,12 @@
 use std::sync::Arc;
 
-use axum::{
-    extract::State,
-    http::{HeaderValue, Method},
-    routing::get,
-    Json, Router,
-};
-use clap::Parser;
 use odin::{
-    configuration::get_configuration,
-    memory::{get_cached_data, Cache},
-    monitor::SystemMonitor,
+    memory::Cache,
     os_tooling::OsProcessGroup,
-    telemetry::{get_subscriber, init_subscriber},
     web::app::start_server,
 };
 
-use odin::web::routes::api::get_processes;
 use tokio::sync::Mutex;
-use tower_http::cors::{Any, CorsLayer};
 #[tokio::main]
 async fn main() {
     let blob_storage: Cache<String, Vec<OsProcessGroup>> = Cache::new(60);
