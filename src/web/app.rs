@@ -9,7 +9,7 @@ use axum::{
 use tokio::sync::Mutex;
 use tower_http::cors::{Any, CorsLayer};
 
-use crate::{memory::Cache, os_tooling::OsProcessGroup};
+use crate::{cache::Cache, os_tooling::OsProcessGroup};
 
 use super::routes::api::get_processes;
 

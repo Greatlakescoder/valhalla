@@ -1,6 +1,6 @@
 use crate::{
     configuration::Settings,
-    memory::blob::Cache,
+    cache::blob::Cache,
     ollama::{
         get_name_verification_prompt, get_resource_verification_prompt, OllamaAgentOutput,
         OllamaClient, OllamaNameInput, OllamaRequest, OllamaResourceUsageInput,

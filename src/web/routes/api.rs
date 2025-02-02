@@ -7,7 +7,8 @@ use axum::{
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::{memory::{get_cached_data, Cache}, os_tooling::OsProcessGroup};
+use crate::{os_tooling::OsProcessGroup};
+use crate::cache::{get_cached_data,Cache};
 
 
 pub async fn get_processes(

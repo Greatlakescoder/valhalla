@@ -1,7 +1,7 @@
 use clap::Parser;
 use odin::{
     configuration::get_configuration,
-    memory::Cache,
+    cache::Cache,
     monitor::SystemMonitor,
     os_tooling::OsProcessGroup,
     telemetry::{get_subscriber, init_subscriber},

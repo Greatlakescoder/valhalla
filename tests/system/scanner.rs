@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 // tests/scanner_test.rs
 use crate::helpers::TestEnvironment;
-use odin::{configuration::get_configuration, memory::Cache, monitor::SystemMonitor, os_tooling::OsProcessGroup};
+use odin::{configuration::get_configuration, cache::Cache, monitor::SystemMonitor, os_tooling::OsProcessGroup};
 use tokio::sync::Mutex;
 
 #[tokio::test]
