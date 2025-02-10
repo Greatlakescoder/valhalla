@@ -17,15 +17,57 @@ use crate::{
 use anyhow::Result;
 use chrono::Local;
 use metrics::counter;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sysinfo::System;
 use std::{collections::HashSet, sync::Arc};
+use sysinfo::System;
 use tokio::sync::Mutex;
+
+#[derive(Serialize, Default, Deserialize, Debug)]
+pub struct MonitorOutput {
+    processes: Vec<OsProcessGroup>,
+    cpu: CPUGroup,
+    memory: SystemMemory,
+    disks: DiskGroup,
+    network: NetworkInterfaceGroup,
+}
+
+impl MonitorOutput {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_processes(mut self, processes: Vec<OsProcessGroup>) -> Self {
+        self.processes = processes;
+        self
+    }
+
+    pub fn with_cpu(mut self, cpus: CPUGroup) -> Self {
+        self.cpu = cpus;
+        self
+    }
+
+    pub fn with_memory(mut self, memory: SystemMemory) -> Self {
+        self.memory = memory;
+        self
+    }
+
+    pub fn with_disks(mut self, disks: DiskGroup) -> Self {
+        self.disks = disks;
+        self
+    }
+
+    pub fn with_networks(mut self, networks: NetworkInterfaceGroup) -> Self {
+        self.network = networks;
+        self
+    }
+}
+
 pub struct SystemMonitor {
     ollama_client: OllamaClient,
     storage: Arc<Mutex<Cache<String, Vec<OsProcessGroup>>>>,
     settings: Settings,
-    system: System
+    system: System,
 }
 
 impl SystemMonitor {
@@ -39,7 +81,7 @@ impl SystemMonitor {
             ollama_client,
             settings,
             storage: storage_blob,
-            system
+            system,
         }
     }
 
@@ -259,14 +301,23 @@ impl SystemMonitor {
 
         let memory_scan = self.monitor_memory_usage().await;
 
-        if !self.settings.monitor.offline {
-            let results = self
-                .call_ollama_name_verification(process_scan.clone())
-                .await?;
-            let _ = self
-                .call_ollama_resource_verification(process_scan, results)
-                .await?;
-        }
+        let output = MonitorOutput::new()
+            .with_cpu(cpu_scan)
+            .with_disks(disk_scan)
+            .with_memory(memory_scan)
+            .with_processes(process_scan)
+            .with_networks(network_scan);
+
+        println!("{}",serde_json::to_string_pretty(&output).unwrap());
+
+        // if !self.settings.monitor.offline {
+        //     let results = self
+        //         .call_ollama_name_verification(process_scan.clone())
+        //         .await?;
+        //     let _ = self
+        //         .call_ollama_resource_verification(process_scan, results)
+        //         .await?;
+        // }
 
         Ok(())
     }

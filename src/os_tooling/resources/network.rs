@@ -1,12 +1,15 @@
+use core::time;
+use std::thread;
+
 use serde::{Deserialize, Serialize};
 use sysinfo::{Networks, System};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Default, Deserialize, Debug)]
 pub struct NetworkInterfaceGroup {
     pub interfaces: Vec<NetworkInterface>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Default, Deserialize, Debug)]
 pub struct NetworkInterface {
     pub name: String,
     pub received: u64,
@@ -17,8 +20,12 @@ pub struct NetworkInterface {
 }
 
 pub fn get_network_information(system: &mut System) -> NetworkInterfaceGroup {
-    system.refresh_all();
-    let networks = Networks::new_with_refreshed_list();
+
+    let mut networks = Networks::new_with_refreshed_list();
+    // Waiting a bit to get data from network...
+    thread::sleep(time::Duration::from_secs(2));
+    // Refreshing again to generate diff.
+    networks.refresh(true);
 
     let mut interfaces: Vec<NetworkInterface> = vec![];
 
