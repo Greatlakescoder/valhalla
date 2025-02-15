@@ -30,6 +30,7 @@ pub fn get_network_information(system: &mut System) -> NetworkInterfaceGroup {
     let mut interfaces: Vec<NetworkInterface> = vec![];
 
     for (interface_name, data) in &networks {
+        
         interfaces.push(NetworkInterface {
             name: interface_name.to_string(),
             received: data.received(),
