@@ -1,25 +1,20 @@
 use crate::{
     cache::blob::Cache,
     configuration::Settings,
-    ollama::{
-        get_name_verification_prompt, get_resource_verification_prompt, OllamaAgentOutput,
-        OllamaClient, OllamaNameInput, OllamaRequest, OllamaResourceUsageInput,
-    },
+    ollama::OllamaClient,
     os_tooling::{
         cpu::{get_current_cpu_usage, CPUGroup},
         disk::{get_disk_usage, DiskGroup},
         memory::{get_system_memory, SystemMemory},
         network::{get_network_information, NetworkInterfaceGroup},
-        process::OsProcessGroup,
-        MetadataTags, SystemScanner,
+        process::OsProcessGroup, SystemScanner,
     },
 };
 use anyhow::Result;
 use chrono::Local;
 use metrics::counter;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 use sysinfo::System;
 use tokio::sync::Mutex;
 
