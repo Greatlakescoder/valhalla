@@ -4,12 +4,12 @@ use std::thread;
 use serde::{Deserialize, Serialize};
 use sysinfo::{Networks, System};
 
-#[derive(Serialize, Default, Deserialize, Debug)]
+#[derive(Serialize, Clone,Default, Deserialize, Debug)]
 pub struct NetworkInterfaceGroup {
     pub interfaces: Vec<NetworkInterface>,
 }
 
-#[derive(Serialize, Default, Deserialize, Debug)]
+#[derive(Serialize,Clone, Default, Deserialize, Debug)]
 pub struct NetworkInterface {
     pub name: String,
     pub received: u64,

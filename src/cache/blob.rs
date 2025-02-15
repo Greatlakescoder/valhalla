@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::time::{Duration, Instant};
 
+#[derive(Debug)]
 pub struct Cache<K, V> {
     data: HashMap<K, (V, Instant)>,
     ttl: Duration,

@@ -45,10 +45,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     tokio::spawn(async move {
         loop {
             tracing::info!("System Monitor running");
-            let mut monitor = SystemMonitor::new(settings.clone(), monitor_cache.clone());
+            let mut monitor = SystemMonitor::new(settings.clone());
             if let Err(e) = monitor.run().await {
                 tracing::error!("Monitor error: {}", e);
             }
+            let _ = monitor.get_latest_snapshot().await;
             tokio::time::sleep(Duration::from_secs(30)).await;
         }
     });
