@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useMemo, useState } from 'react';
 import {
     LineChart,
     Line,
@@ -39,8 +39,14 @@ const MetricCard = ({ title, icon: Icon, value, subValue, color }) => (
             <h3 className="text-slate-200 font-medium">{title}</h3>
         </div>
         <div className="font-mono">
-            <div className="text-2xl text-slate-200">{value}</div>
-            {subValue && <div className="text-sm text-slate-400">{subValue}</div>}
+            <div className="text-2xl text-slate-200 transition-all duration-500 ease-out">
+                {value}
+            </div>
+            {subValue && (
+                <div className="text-sm text-slate-400 transition-all duration-500 ease-out">
+                    {subValue}
+                </div>
+            )}
         </div>
     </div>
 );
@@ -49,7 +55,7 @@ const CPUChart = ({ cpus }) => {
     const data = cpus.map((cpu, index) => ({
         name: `CPU ${index}`,
         usage: cpu.usage,
-        frequency: cpu.frequency,
+        frequency: cpu.frequency / 1000, // Convert to GHz
     }));
 
     return (
@@ -67,8 +73,22 @@ const CPUChart = ({ cpus }) => {
                         }}
                     />
                     <Legend />
-                    <Line type="monotone" dataKey="usage" stroke="#38bdf8" name="Usage %" strokeWidth={2} />
-                    <Line type="monotone" dataKey="frequency" stroke="#818cf8" name="Frequency MHz" strokeWidth={2} />
+                    <Line 
+                        type="monotone" 
+                        dataKey="usage" 
+                        stroke="#38bdf8" 
+                        name="Usage %" 
+                        strokeWidth={2}
+                        animationDuration={500}
+                    />
+                    <Line 
+                        type="monotone" 
+                        dataKey="frequency" 
+                        stroke="#818cf8" 
+                        name="Frequency GHz" 
+                        strokeWidth={2}
+                        animationDuration={500}
+                    />
                 </LineChart>
             </ResponsiveContainer>
         </div>
@@ -76,6 +96,80 @@ const CPUChart = ({ cpus }) => {
 };
 
 const SystemDashboard = ({ data, loading }) => {
+    // All hooks must be declared first, before any conditional returns
+    const [expandedProcesses, setExpandedProcesses] = useState(new Set());
+    const prevValuesRef = useRef({
+        cpuUsage: 0,
+        memoryUsage: 0,
+        diskUsage: 0,
+        networkRx: 0,
+        networkTx: 0
+    });
+    const prevDataRef = useRef(data);
+
+    // Smooth transition helper
+    const smoothValue = (newValue, key, duration = 500) => {
+        const prev = prevValuesRef.current[key];
+        if (typeof newValue !== 'number' || isNaN(newValue)) return prev || 0;
+        
+        prevValuesRef.current[key] = newValue;
+        
+        if (Math.abs(newValue - prev) > 50) {
+            return newValue;
+        }
+        
+        return prev + (newValue - prev) * 0.5;
+    };
+
+    // Process toggle handler
+    const toggleProcess = (pid) => {
+        setExpandedProcesses(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(pid)) {
+                newSet.delete(pid);
+            } else {
+                newSet.add(pid);
+            }
+            return newSet;
+        });
+    };
+
+    // Memoized calculations
+    const avgCpuUsage = useMemo(() => {
+        const newValue = data.cpu?.cpus?.reduce((acc, cpu) => acc + cpu.usage, 0) / (data.cpu?.cpus?.length || 1);
+        return smoothValue(newValue, 'cpuUsage');
+    }, [data.cpu]);
+
+    const memoryUsage = useMemo(() => {
+        const newValue = (data.memory?.used_memory || 0);
+        return smoothValue(newValue, 'memoryUsage');
+    }, [data.memory]);
+
+    const diskUsage = useMemo(() => {
+        const newValue = data.disks?.disks?.[0]?.used || 0;
+        return smoothValue(newValue, 'diskUsage');
+    }, [data.disks]);
+
+    // Find main network interface (excluding lo)
+    const mainInterface = useMemo(() => {
+        return data.network?.interfaces?.find(i => 
+            i.name !== 'lo' && (i.received > 0 || i.transmitted > 0)
+        ) || data.network?.interfaces?.[0];
+    }, [data.network]);
+
+    // Network usage with smooth transitions
+    const networkRx = useMemo(() => {
+        return smoothValue(mainInterface?.received || 0, 'networkRx');
+    }, [mainInterface]);
+
+    const networkTx = useMemo(() => {
+        return smoothValue(mainInterface?.transmitted || 0, 'networkTx');
+    }, [mainInterface]);
+
+    // Update prevDataRef
+    prevDataRef.current = data;
+
+    // Now we can do the loading check
     if (loading) {
         return (
             <div className="min-h-screen bg-slate-900 text-slate-200 w-full">
@@ -90,26 +184,6 @@ const SystemDashboard = ({ data, loading }) => {
             </div>
         );
     }
-
-    const [expandedProcesses, setExpandedProcesses] = React.useState(new Set());
-
-    const toggleProcess = (pid) => {
-        setExpandedProcesses(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(pid)) {
-                newSet.delete(pid);
-            } else {
-                newSet.add(pid);
-            }
-            return newSet;
-        });
-    };
-
-    // Calculate average CPU usage
-    const avgCpuUsage = data.cpu?.cpus?.reduce((acc, cpu) => acc + cpu.usage, 0) / (data.cpu?.cpus?.length || 1);
-
-    // Get main network interface stats (excluding lo)
-    const mainInterface = data.network?.interfaces?.find(i => i.name !== 'lo' && (i.received > 0 || i.transmitted > 0)) || data.network?.interfaces?.[0];
 
     return (
         <div className="flex flex-col w-screen min-h-screen bg-slate-900 text-slate-200">
@@ -130,22 +204,22 @@ const SystemDashboard = ({ data, loading }) => {
                     <MetricCard
                         title="Memory"
                         icon={Database}
-                        value={`${((data.memory?.used_memory || 0) / 1024).toFixed(1)} GB`}
-                        subValue={`${(((data.memory?.used_memory || 0) / (data.memory?.total_memory || 1)) * 100).toFixed(1)}% of ${((data.memory?.total_memory || 0) / 1024).toFixed(1)} GB`}
+                        value={`${(memoryUsage / 1024).toFixed(1)} GB`}
+                        subValue={`${((memoryUsage / (data.memory?.total_memory || 1)) * 100).toFixed(1)}% of ${((data.memory?.total_memory || 0) / 1024).toFixed(1)} GB`}
                         color="text-indigo-400"
                     />
                     <MetricCard
                         title="Disk"
                         icon={HardDrive}
-                        value={`${((data.disks?.disks?.[0]?.used || 0)).toFixed(1)} GB`}
+                        value={`${diskUsage.toFixed(1)} GB`}
                         subValue={`${((data.disks?.disks?.[0]?.usage || 0)).toFixed(1)}% of ${((data.disks?.disks?.[0]?.total || 0)).toFixed(1)} GB`}
                         color="text-emerald-400"
                     />
                     <MetricCard
                         title="Network"
                         icon={Network}
-                        value={`${((mainInterface?.received || 0) / 1024 / 1024).toFixed(1)} MB`}
-                        subValue={`${((mainInterface?.transmitted || 0) / 1024 / 1024).toFixed(1)} MB TX`}
+                        value={`${(networkRx / 1024 / 1024).toFixed(1)} MB`}
+                        subValue={`${(networkTx / 1024 / 1024).toFixed(1)} MB TX`}
                         color="text-purple-400"
                     />
                 </div>
