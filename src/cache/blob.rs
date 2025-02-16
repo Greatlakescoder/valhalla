@@ -42,21 +42,16 @@ where
 
 pub fn get_cached_data<K, V>(cache: &Cache<K, V>) -> Vec<V>
 where
-    K: Hash + Eq + Clone,
+    K: Hash + Eq + Clone + Ord, // Add Ord since we need to sort
     V: Clone + Debug,
 {
-    let keys: Vec<_> = cache.data.keys().cloned().collect();
-    let mut values = Vec::new();
+    // Get all entries and sort by key (timestamp) in reverse order
+    let mut entries: Vec<_> = cache.data.keys().cloned().collect();
+    entries.sort_by(|a, b| b.cmp(a)); // Reverse sort so newest is first
     
-    
-    for i in 0..=5 {
-        if i < keys.len() {
-            if let Some(value) = cache.get(&keys[i]) {
-                values.push(value);
-            }
-        }
-    }
-    values
+    // Take up to 5 most recent entries
+    entries.iter()
+        .take(5)
+        .filter_map(|key| cache.get(key))
+        .collect()
 }
-
-

@@ -9,13 +9,13 @@ use axum::{
 use tokio::sync::Mutex;
 use tower_http::cors::{Any, CorsLayer};
 
-use crate::{cache::Cache, os_tooling::process::OsProcessGroup};
+use crate::{cache::Cache, monitor::SystemMonitor, os_tooling::process::OsProcessGroup};
 
 use super::routes::api::get_processes;
 
 
 
-pub async fn start_server(storage: Arc<Mutex<Cache<String, Vec<OsProcessGroup>>>>) {
+pub async fn start_server(storage: SystemMonitor) {
     let cors = CorsLayer::new()
         .allow_origin("http://localhost:5173".parse::<HeaderValue>().unwrap())
         .allow_methods([Method::GET])

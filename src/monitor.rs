@@ -34,11 +34,12 @@ impl<T: Clone + std::fmt::Debug> MetricStore<T> {
         }
     }
 
-    pub async fn store(&self, metric: T) {
+    pub async fn store(&self, metric_type: &str, value: T) {
         let mut cache = self.cache.lock().await;
-        let timestamp = Local::now().to_string();
-        cache.insert(timestamp, metric);
-        cache.remove_expired();
+        // Include metric type in key to prevent collisions
+        let key = format!("{}_{}", metric_type, Local::now().to_string());
+        cache.insert(key, value);
+        // cache.remove_expired();
     }
 
     pub async fn get_recent(&self, count: usize) -> Vec<T> {
@@ -107,7 +108,7 @@ impl ProcessMonitor {
             ticker.tick().await;
             match self.collect().await {
                 Ok(processes) => {
-                    self.store.store(processes).await;
+                    self.store.store("process", processes).await;
                 }
                 Err(e) => {
                     tracing::error!("Failed to collect process metrics: {}", e);
@@ -142,7 +143,7 @@ impl CPUMonitor {
         loop {
             ticker.tick().await;
             let metrics = self.collect();
-            self.store.store(metrics).await;
+            self.store.store("cpu", metrics).await;
         }
     }
 
@@ -169,7 +170,7 @@ impl MemoryMonitor {
         loop {
             ticker.tick().await;
             let metrics = self.collect();
-            self.store.store(metrics).await;
+            self.store.store("memory", metrics).await;
         }
     }
 
@@ -196,7 +197,7 @@ impl NetworkMonitor {
         loop {
             ticker.tick().await;
             let metrics = self.collect();
-            self.store.store(metrics).await;
+            self.store.store("network", metrics).await;
         }
     }
 
@@ -223,7 +224,7 @@ impl DiskMonitor {
         loop {
             ticker.tick().await;
             let metrics = self.collect();
-            self.store.store(metrics).await;
+            self.store.store("disk", metrics).await;
         }
     }
 
@@ -246,11 +247,11 @@ pub struct SystemMonitor {
 impl SystemMonitor {
     pub fn new(settings: Settings) -> Self {
         Self {
-            process_store: Arc::new(MetricStore::new(300)), // 5 min TTL
-            cpu_store: Arc::new(MetricStore::new(60)),      // 1 min TTL
-            memory_store: Arc::new(MetricStore::new(60)),
+            process_store: Arc::new(MetricStore::new(30)), // 5 min TTL
+            cpu_store: Arc::new(MetricStore::new(10)),      // 1 min TTL
+            memory_store: Arc::new(MetricStore::new(10)),
             disk_store: Arc::new(MetricStore::new(300)),
-            network_store: Arc::new(MetricStore::new(60)),
+            network_store: Arc::new(MetricStore::new(10)),
             settings,
         }
     }
@@ -259,33 +260,38 @@ impl SystemMonitor {
         // Spawn process monitor
         let process_monitor = ProcessMonitor::new(Arc::clone(&self.process_store));
         tokio::spawn(async move {
-            process_monitor.run(Duration::from_secs(1)).await;
+            // tokio::signal::ctrl_c().await.unwrap();
+            process_monitor.run(Duration::from_secs(5)).await;
         });
 
         // Spawn CPU monitor
         let cpu_monitor = CPUMonitor::new(Arc::clone(&self.cpu_store));
         tokio::spawn(async move {
-            cpu_monitor.run(Duration::from_secs(1)).await;
+            // tokio::signal::ctrl_c().await.unwrap();
+            cpu_monitor.run(Duration::from_secs(2)).await;
         });
 
         // Spawn Disk monitor
         let disk_monitor = DiskMonitor::new(Arc::clone(&self.disk_store));
         tokio::spawn(async move {
-            disk_monitor.run(Duration::from_secs(1)).await;
+            // tokio::signal::ctrl_c().await.unwrap();
+            disk_monitor.run(Duration::from_secs(10)).await;
         });
 
         // Spawn Network monitor
         let network_monitor = NetworkMonitor::new(Arc::clone(&self.network_store));
         tokio::spawn(async move {
-            network_monitor.run(Duration::from_secs(1)).await;
+            // tokio::signal::ctrl_c().await.unwrap();
+            network_monitor.run(Duration::from_secs(10)).await;
         });
 
         // Spawn Memory monitor
         let memory_monitor = MemoryMonitor::new(Arc::clone(&self.memory_store));
         tokio::spawn(async move {
-            memory_monitor.run(Duration::from_secs(1)).await;
+            // tokio::signal::ctrl_c().await.unwrap();
+            memory_monitor.run(Duration::from_secs(10)).await;
         });
-
+        tokio::signal::ctrl_c().await?;
         Ok(())
     }
 
@@ -321,20 +327,7 @@ impl SystemMonitor {
                     .pop()
                     .unwrap_or_default(),
             );
-            println!("{}",serde_json::to_string_pretty(&output).unwrap());
-            return output
+
+        output
     }
-
-    // // Get historical data
-    // pub async fn get_historical_snapshot(&self, count: usize) -> Vec<MonitorOutput> {
-    //     let processes = self.process_store.get_recent(count).await;
-    //     let cpus = self.cpu_store.get_recent(count).await;
-    //     let memories = self.memory_store.get_recent(count).await;
-    //     let disks = self.disk_store.get_recent(count).await;
-    //     let networks = self.network_store.get_recent(count).await;
-
-    //     // Zip everything together into MonitorOutputs...
-    //     // You'll need to decide how to handle cases where metrics have different numbers of entries
-    //     vec![] // Implementation details depend on your requirements
-    // }
 }

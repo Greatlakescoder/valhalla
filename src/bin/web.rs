@@ -1,15 +1,14 @@
 use std::sync::Arc;
 
 use odin::{
-    cache::Cache,
-    os_tooling::process::OsProcessGroup,
-    web::app::start_server,
+    cache::Cache, configuration::get_configuration, monitor::SystemMonitor,
+    os_tooling::process::OsProcessGroup, web::app::start_server,
 };
 
 use tokio::sync::Mutex;
 #[tokio::main]
 async fn main() {
-    let blob_storage: Cache<String, Vec<OsProcessGroup>> = Cache::new(60);
-    let storage = Arc::new(Mutex::new(blob_storage));
-    start_server(storage).await
+    let settings = get_configuration().expect("Failed to read configuration.");
+    let monitor = SystemMonitor::new(settings.clone());
+    start_server(monitor).await
 }
