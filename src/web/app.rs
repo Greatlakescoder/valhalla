@@ -21,7 +21,7 @@ pub async fn start_server(storage: SystemMonitor) {
         .allow_methods([Method::GET])
         .allow_headers(Any);
     let app = Router::new()
-        .route("/processes", get(get_processes))
+        .route("/metrics", get(get_processes))
         .layer(cors)
         .with_state(storage);
 

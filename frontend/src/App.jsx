@@ -1,32 +1,40 @@
 import { useEffect, useState } from 'react';
-import ProcessMonitor from './components/ProcessMonitor.jsx';
+import SystemDashboard from './components/SystemDashboard.jsx';
 
 function App() {
-  const [processes, setProcesses] = useState([]); // Initialize with empty array
-  const [loading, setLoading] = useState(true);  // Add loading state
+  const [systemData, setSystemData] = useState({
+    processes: [],
+    cpu: {},           // Changed from { usage: 0, cores: 0 }
+    memory: {},        // Changed from { used: 0, total: 0 }
+    disks: {},         // Changed from { used: 0, total: 0 }
+    network: {}        // Changed from { rx_bytes: 0, tx_bytes: 0 }
+});
+  const [loading, setLoading] = useState(true);
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
   useEffect(() => {
-    const fetchProcesses = async () => {
+    const fetchSystemData = async () => {
       try {
-        setLoading(true);  // Set loading before fetch
-        const response = await fetch(`${API_URL}/processes`);
+        setLoading(true);
+        const response = await fetch(`${API_URL}/metrics`);
         const data = await response.json();
-        // Only set the processes if we got valid data
-        if (data && data[0]) {
-          setProcesses(data[0]);
+        
+        // Only update if we got valid data
+        if (data) {
+          setSystemData(data);
         }
       } catch (error) {
-        console.error('Error fetching processes:', error);
+        console.error('Error fetching system data:', error);
       } finally {
-        setLoading(false);  // Always turn off loading
+        setLoading(false);
       }
     };
 
     // Initial fetch
-    fetchProcesses();
+    fetchSystemData();
 
     // Set up polling
-    const interval = setInterval(fetchProcesses, 5000);
+    const interval = setInterval(fetchSystemData, 30000);
 
     // Cleanup
     return () => clearInterval(interval);
@@ -34,8 +42,8 @@ function App() {
 
   // Show loading or pass valid data
   return (
-    <ProcessMonitor 
-      processes={processes} 
+    <SystemDashboard 
+      data={systemData}
       loading={loading}
     />
   );
