@@ -1,7 +1,7 @@
 use clap::Parser;
 use odin::{
-    configuration::get_configuration,
     cache::Cache,
+    configuration::get_configuration,
     monitor::SystemMonitor,
     os_tooling::process::OsProcessGroup,
     telemetry::{get_subscriber, init_subscriber},
@@ -40,24 +40,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let blob_storage: Cache<String, Vec<OsProcessGroup>> = Cache::new(60);
     let storage = Arc::new(Mutex::new(blob_storage));
 
-    // Spawn monitoring task that runs every 30 seconds
-    let monitor_cache = storage.clone();
-    tokio::spawn(async move {
-        loop {
-            tracing::info!("System Monitor running");
-            let mut monitor = SystemMonitor::new(settings.clone(), monitor_cache.clone());
+
+    let monitor = SystemMonitor::new(settings.clone());
+    tokio::spawn({
+        let monitor = monitor.clone(); 
+        async move {
+            // So we spawn monitoring tasks which will spawn sub tasks for each monitor and then we await
+            // which essentially is blocking so sub tasks can run forever until killed
             if let Err(e) = monitor.run().await {
                 tracing::error!("Monitor error: {}", e);
             }
-            tokio::time::sleep(Duration::from_secs(30)).await;
         }
     });
 
-    let web_cache = storage.clone();
+    let web_monitor = monitor.clone();
     tokio::spawn(async move {
         loop {
             tracing::info!("Web Server running");
-            start_server(web_cache.clone()).await;
+            start_server(web_monitor.clone()).await;
         }
     });
 

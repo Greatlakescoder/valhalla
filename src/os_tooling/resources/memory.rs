@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sysinfo::System;
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize,Clone, Debug, Default)]
 pub struct SystemMemory {
     total_memory: u64,
     used_memory: u64,

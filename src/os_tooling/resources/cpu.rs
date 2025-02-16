@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
 use sysinfo::{CpuRefreshKind, System};
 
-#[derive(Serialize, Deserialize,Default,Debug)]
+#[derive(Serialize,Clone, Deserialize,Default,Debug)]
 pub struct CPUGroup {
     pub cpus: Vec<CPUResource>,
 }
-#[derive(Serialize, Default,Deserialize,Debug)]
+#[derive(Serialize,Clone, Default,Deserialize,Debug)]
 pub struct CPUResource {
     pub name: String,
     pub brand: String,

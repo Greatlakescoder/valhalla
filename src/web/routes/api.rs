@@ -4,17 +4,14 @@ use axum::{
     Json,
 };
 
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
-use crate::os_tooling::process::OsProcessGroup;
-use crate::cache::{get_cached_data,Cache};
+use crate::monitor::{MonitorOutput, SystemMonitor};
+
 
 
 pub async fn get_processes(
-    State(storage): State<Arc<Mutex<Cache<String, Vec<OsProcessGroup>>>>>,
-) -> Json<Vec<Vec<OsProcessGroup>>> {
-    let  cache = storage.lock().await;
-    let data = get_cached_data(&*cache);
-    Json(data)
+    State(monitor): State<SystemMonitor>,
+) -> Json<MonitorOutput> {
+    let snapshot = monitor.get_latest_snapshot().await;
+    Json(snapshot)
 }
