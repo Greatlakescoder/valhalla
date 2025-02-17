@@ -1,7 +1,6 @@
 use crate::{
     cache::{blob::Cache, get_cached_data},
     configuration::Settings,
-    ollama::OllamaClient,
     os_tooling::{
         cpu::{get_current_cpu_usage, CPUGroup},
         disk::{get_disk_usage, DiskGroup},
@@ -13,7 +12,6 @@ use crate::{
 };
 use anyhow::Result;
 use chrono::Local;
-use metrics::counter;
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
 use sysinfo::System;
@@ -37,7 +35,7 @@ impl<T: Clone + std::fmt::Debug> MetricStore<T> {
     pub async fn store(&self, metric_type: &str, value: T) {
         let mut cache = self.cache.lock().await;
         // Include metric type in key to prevent collisions
-        let key = format!("{}_{}", metric_type, Local::now().to_string());
+        let key = format!("{}_{}", metric_type, Local::now());
         cache.insert(key, value);
         // cache.remove_expired();
     }
@@ -297,7 +295,9 @@ impl SystemMonitor {
 
     // API endpoint helper
     pub async fn get_latest_snapshot(&self) -> MonitorOutput {
-        let output = MonitorOutput::new()
+        
+
+        MonitorOutput::new()
             .with_processes(
                 self.process_store
                     .get_recent(1)
@@ -326,9 +326,7 @@ impl SystemMonitor {
                     .await
                     .pop()
                     .unwrap_or_default(),
-            );
-
-        output
+            )
     }
 }
 

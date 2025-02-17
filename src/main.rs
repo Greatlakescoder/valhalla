@@ -8,7 +8,7 @@ use odin::{
     web::app::start_server,
 };
 
-use std::{error::Error, sync::Arc, time::Duration};
+use std::{error::Error, sync::Arc};
 use tokio::sync::Mutex;
 
 #[derive(Parser, Debug)]

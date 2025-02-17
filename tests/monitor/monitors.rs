@@ -1,9 +1,6 @@
-use std::sync::Arc;
 
 // tests/scanner_test.rs
-use crate::helpers::TestEnvironment;
-use odin::{configuration::get_configuration, cache::Cache, monitor::SystemMonitor, os_tooling::process::OsProcessGroup};
-use tokio::sync::Mutex;
+use odin::monitor::SystemMonitor;
 
 #[cfg(test)]
 mod tests {

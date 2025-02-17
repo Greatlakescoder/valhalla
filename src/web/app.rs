@@ -1,4 +1,3 @@
-use std::sync::Arc;
 
 use axum::{
     http::{HeaderValue, Method},
@@ -6,10 +5,9 @@ use axum::{
     Router,
 };
 
-use tokio::sync::Mutex;
 use tower_http::cors::{Any, CorsLayer};
 
-use crate::{cache::Cache, monitor::SystemMonitor, os_tooling::process::OsProcessGroup};
+use crate::monitor::SystemMonitor;
 
 use super::routes::api::get_processes;
 
