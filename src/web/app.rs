@@ -9,7 +9,7 @@ use tower_http::cors::{Any, CorsLayer};
 
 use crate::monitor::SystemMonitor;
 
-use super::routes::api::get_processes;
+use super::routes::api::{get_processes,ollama_request};
 
 
 
@@ -20,6 +20,7 @@ pub async fn start_server(storage: SystemMonitor) {
         .allow_headers(Any);
     let app = Router::new()
         .route("/metrics", get(get_processes))
+        .route("/ollama", get(ollama_request))
         .layer(cors)
         .with_state(storage);
 

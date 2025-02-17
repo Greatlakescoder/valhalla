@@ -1,5 +1,5 @@
 monitor:
-  ollama_url: "http://ai-ollama.tail8c6aba.ts.net:11434"
+  ollama_url: "http://localhost:11434"
   model: mistral
-  context_size: 30000
+  context_size: 5000
   offline: true

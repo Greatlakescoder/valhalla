@@ -1,51 +1,48 @@
-pub const NAME_SYSTEM_MESSAGE: &str = r#"You are a deterministic JSON generator specializing in Linux process analysis. CRITICAL OUTPUT RULES:
-1. Must output COMPLETE JSON arrays only
-2. Must NEVER truncate output with phrases like:
-   - "..."
-   - "(Removed for brevity)"
-   - "The rest of the array contains similar entries"
-   - Any other form of indicating more items exist
-3. Must analyze and include EVERY SINGLE process in the output
-4. Must contain no comments or non-JSON content
-5. Must never summarize or shorten the output"#;
+pub const PROCESS_ANALYSIS_PROMPT: &str = r#"Score each process name for potential maliciousness on a scale of 0-100.
 
-pub const NAME_USER_PROMPT: &str = r#"You are an expert system analyst monitoring for suspicious activity in Linux systems.
-
-Analysis rules:
-1. Check every process name against common Linux naming patterns
-2. Flag suspicious variations of common process names:
-   - Misspellings (e.g., systend instead of systemd)
-   - Number substitutions (using 0 for o, 1 for l)
-   - Unusual suffixes (-miner, -worker, -service)
-3. Consider process context:
-   - Is this process normally seen on Linux systems?
-   - Is the name attempting to look legitimate?
-   - Could it be a cryptocurrency miner or malware?
-
-Return a JSON array where each object MUST have these EXACT fields:
+Input format will be a JSON array of objects containing:
 {
-  "pid": number,           (REQUIRED: process ID as number)
-  "name": string,         (REQUIRED: process name in quotes)
-  "isMalicious": boolean, (REQUIRED: lowercase true/false, no quotes)
-  "reason": string        (REQUIRED: explanation in quotes)
+    "pid": number,    // Process ID
+    "name": string    // Process name
 }
 
-CRITICAL RESPONSE RULES:
-1. Every single process MUST be included in the output
-2. Repeated values are okay, print every single process
-3. Comments are invalid in this context like "rest of array similar" or "removed for brevity"
-4. Every object MUST have all four fields above
-5. Field names MUST match exactly ("isMalicious" not "is_malicious")
-6. No trailing commas
-7. Double quotes only for strings
-8. Boolean must be lowercase (true/false)
-9. If you see many similar processes, you MUST still output them all individually
+Scoring criteria:
+- 0-20: Known legitimate system process (e.g., systemd, cron)
+- 21-40: Uncommon but likely legitimate process
+- 41-60: Unusual or suspicious name pattern
+- 61-80: Highly suspicious patterns (misspellings, number substitutions)
+- 81-100: Known malware patterns or extremely suspicious
 
-Common legitimate Linux processes for reference:
-systemd, system-udevd, sshd, ssh-agent, cron, crond, 
-nginx, apache2, postgres, mysql, docker, containerd,
-pulseaudio, pipewire, gnome-shell, kde-daemon, dbus-daemon,
-networkmanager, snapd, dockerd, cups-browsed"#;
+Suspicion factors to consider:
+1. Misspellings of common processes (systend, crontab.exe)
+2. Number substitutions (syst3md, cr0n)
+3. Suspicious suffixes (-miner, -worker, -hidden)
+4. Unusual character usage (.exe on Linux, unusual symbols)
+5. Impersonation of system processes
+6. Cryptocurrency mining related names
+
+Output format must be a JSON array of objects with EXACTLY these fields:
+{
+    "pid": number,          // Process ID as number
+    "name": string,         // Process name
+    "score": number,        // 0-100 suspicion score
+    "reason": string        // Explanation of score
+}
+
+Required format rules:
+1. Every process must be included
+2. All fields are required
+3. Score must be 0-100
+4. Use double quotes for strings
+5. No comments or truncation
+6. No trailing commas
+7. Valid JSON only
+
+Common legitimate processes (baseline 0-20 score):
+systemd, udevd, sshd, cron, nginx, apache2, postgres,
+mysql, docker, containerd, pulseaudio, pipewire,
+gnome-shell, dbus-daemon, networkmanager, snapd"#;
+
 
 pub const RESOURCE_SYSTEM_MESSAGE: &str = r#"You are a deterministic JSON generator specializing in Linux process resource analysis. CRITICAL OUTPUT RULES:
 1. Must output COMPLETE JSON arrays only
@@ -100,10 +97,7 @@ Common legitimate resource patterns for reference:
 - Desktop environments: Variable but predictable usage
 - Backup processes: High I/O but low CPU usage"#;
 
-// Function to combine prompts
-pub fn get_name_verification_prompt() -> String {
-    format!("{}\n\n{}", NAME_SYSTEM_MESSAGE, NAME_USER_PROMPT)
-}
+
 
 pub fn get_resource_verification_prompt() -> String {
     format!("{}\n\n{}", RESOURCE_SYSTEM_MESSAGE, RESOURCE_USER_PROMPT)

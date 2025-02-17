@@ -17,9 +17,6 @@ use std::{sync::Arc, time::Duration};
 use sysinfo::System;
 use tokio::sync::Mutex;
 
-// First, let's create a type alias for timestamped metrics
-type TimestampedMetric<T> = (String, T); // (timestamp, metric)
-
 // Shared metric storage for each resource type
 pub struct MetricStore<T> {
     cache: Arc<Mutex<Cache<String, T>>>,
@@ -239,7 +236,7 @@ pub struct SystemMonitor {
     memory_store: Arc<MetricStore<SystemMemory>>,
     disk_store: Arc<MetricStore<DiskGroup>>,
     network_store: Arc<MetricStore<NetworkInterfaceGroup>>,
-    settings: Settings,
+    pub settings: Settings,
 }
 
 impl SystemMonitor {

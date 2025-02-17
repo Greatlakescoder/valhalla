@@ -102,3 +102,11 @@ impl OllamaAgentOutput {
 }
 
 
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProcessScore {
+    pid: u32,
+    name: String,
+    score: u8,
+    reason: String,
+}

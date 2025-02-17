@@ -29,21 +29,16 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    // let args = Args::parse();
-    // In your main function
 
     let subscriber = get_subscriber("odin".into(), "info".into(), std::io::stdout);
     init_subscriber(subscriber);
 
     tracing::info!("System Monitor Starting");
     let settings = get_configuration().expect("Failed to read configuration.");
-    let blob_storage: Cache<String, Vec<OsProcessGroup>> = Cache::new(60);
-    let storage = Arc::new(Mutex::new(blob_storage));
-
 
     let monitor = SystemMonitor::new(settings.clone());
     tokio::spawn({
-        let monitor = monitor.clone(); 
+        let monitor = monitor.clone();
         async move {
             // So we spawn monitoring tasks which will spawn sub tasks for each monitor and then we await
             // which essentially is blocking so sub tasks can run forever until killed
