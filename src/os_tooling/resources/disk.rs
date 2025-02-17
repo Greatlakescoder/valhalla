@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 use sysinfo::{Disks, System};
 
-#[derive(Clone,Serialize, Default,Deserialize,Debug)]
+#[derive(Clone,Serialize, Default,Deserialize,Debug,PartialEq)]
 pub struct DiskGroup {
     pub disks: Vec<DiskResource>,
 }
 
-#[derive(Clone,Serialize, Default,Deserialize,Debug)]
+#[derive(Clone,Serialize, Default,Deserialize,Debug,PartialEq)]
 pub struct DiskResource {
     pub total: f64,
     pub used: f64,

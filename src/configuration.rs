@@ -1,12 +1,12 @@
 
-#[derive(serde::Deserialize,Clone)]
+#[derive(serde::Deserialize,Clone,Default)]
 pub struct Settings {
     pub monitor: MonitorSettings
 
 }
 
 
-#[derive(serde::Deserialize,Clone)]
+#[derive(serde::Deserialize,Clone,Default)]
 pub struct MonitorSettings {
     pub ollama_url: String,
     pub model: String,

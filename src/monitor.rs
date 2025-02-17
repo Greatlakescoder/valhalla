@@ -50,11 +50,11 @@ impl<T: Clone + std::fmt::Debug> MetricStore<T> {
 
 #[derive(Serialize, Default, Deserialize, Debug)]
 pub struct MonitorOutput {
-    processes: Vec<OsProcessGroup>,
-    cpu: CPUGroup,
-    memory: SystemMemory,
-    disks: DiskGroup,
-    network: NetworkInterfaceGroup,
+    pub processes: Vec<OsProcessGroup>,
+    pub cpu: CPUGroup,
+    pub memory: SystemMemory,
+    pub disks: DiskGroup,
+    pub network: NetworkInterfaceGroup,
 }
 
 impl MonitorOutput {
@@ -248,7 +248,7 @@ impl SystemMonitor {
     pub fn new(settings: Settings) -> Self {
         Self {
             process_store: Arc::new(MetricStore::new(30)), // 5 min TTL
-            cpu_store: Arc::new(MetricStore::new(10)),      // 1 min TTL
+            cpu_store: Arc::new(MetricStore::new(10)),     // 1 min TTL
             memory_store: Arc::new(MetricStore::new(10)),
             disk_store: Arc::new(MetricStore::new(300)),
             network_store: Arc::new(MetricStore::new(10)),
@@ -329,5 +329,57 @@ impl SystemMonitor {
             );
 
         output
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::test;
+
+    #[test]
+    async fn test_metric_store_basic_operations() {
+        let store = MetricStore::<i32>::new(10); // 10 second TTL
+        
+        // Test storing and retrieving
+        store.store("test_metric", 42).await;
+        let recent = store.get_recent(1).await;
+        assert_eq!(recent.len(), 1);
+        assert_eq!(recent[0], 42);
+    }
+
+    #[test]
+    async fn test_metric_store_ttl() {
+        let store = MetricStore::<String>::new(1); // 1 second TTL
+        
+        store.store("test_metric", "data".to_string()).await;
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        
+        let recent = store.get_recent(1).await;
+        assert_eq!(recent.len(), 0, "Store should be empty after TTL");
+    }
+
+
+    #[test]
+    async fn test_monitor_output_builder() {
+        let processes = vec![OsProcessGroup::default()];
+        let cpu = CPUGroup::default();
+        let memory = SystemMemory::default();
+        let disks = DiskGroup::default();
+        let network = NetworkInterfaceGroup::default();
+
+        let output = MonitorOutput::new()
+            .with_processes(processes.clone())
+            .with_cpu(cpu.clone())
+            .with_memory(memory.clone())
+            .with_disks(disks.clone())
+            .with_networks(network.clone());
+
+        assert_eq!(output.processes, processes);
+        assert_eq!(output.cpu, cpu);
+        assert_eq!(output.memory, memory);
+        assert_eq!(output.disks, disks);
+        assert_eq!(output.network, network);
     }
 }

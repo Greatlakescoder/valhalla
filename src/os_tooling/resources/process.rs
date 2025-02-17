@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use super::MetadataTags;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 pub struct OsProcessInformation {
     pub pid: u32,
     #[serde(skip_serializing)]
@@ -28,7 +28,7 @@ pub struct OsProcessInformation {
     pub fd_count: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 pub struct OsProcessGroup {
     pub parent_process: OsProcessInformation,
     pub forked_threads: Vec<OsProcessInformation>,
@@ -100,7 +100,6 @@ impl OsProcessGroup {
         serde_json::to_string_pretty(self)
     }
 }
-
 
 pub trait ProcessAttribute: Send {
     // &mut interior mutability
