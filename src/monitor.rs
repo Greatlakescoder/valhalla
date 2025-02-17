@@ -1,6 +1,7 @@
 use crate::{
     cache::{blob::Cache, get_cached_data},
     configuration::Settings,
+    ollama::{OllamaClient, ProcessInfo, ProcessScore},
     os_tooling::{
         cpu::{get_current_cpu_usage, CPUGroup},
         disk::{get_disk_usage, DiskGroup},
@@ -13,9 +14,48 @@ use crate::{
 use anyhow::Result;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use sysinfo::System;
 use tokio::sync::Mutex;
+
+// New analysis store for Ollama results
+pub struct AnalysisStore {
+    cache: Arc<Mutex<HashMap<u32, ProcessAnalysis>>>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ProcessAnalysis {
+    name: String,
+    score: u8,
+    reason: String,
+}
+
+impl AnalysisStore {
+    pub fn new() -> Self {
+        Self {
+            cache: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    pub async fn update(&self, analyses: Vec<ProcessScore>) {
+        let mut cache = self.cache.lock().await;
+        for analysis in analyses {
+            cache.insert(
+                analysis.pid,
+                ProcessAnalysis {
+                    name: analysis.name,
+                    score: analysis.score,
+                    reason: analysis.reason,
+                },
+            );
+        }
+    }
+
+    pub async fn get_analysis(&self, pid: u32) -> Option<ProcessAnalysis> {
+        let cache = self.cache.lock().await;
+        cache.get(&pid).cloned()
+    }
+}
 
 // Shared metric storage for each resource type
 pub struct MetricStore<T> {
@@ -236,6 +276,7 @@ pub struct SystemMonitor {
     memory_store: Arc<MetricStore<SystemMemory>>,
     disk_store: Arc<MetricStore<DiskGroup>>,
     network_store: Arc<MetricStore<NetworkInterfaceGroup>>,
+    analysis_store: Arc<AnalysisStore>,
     pub settings: Settings,
 }
 
@@ -247,6 +288,7 @@ impl SystemMonitor {
             memory_store: Arc::new(MetricStore::new(10)),
             disk_store: Arc::new(MetricStore::new(300)),
             network_store: Arc::new(MetricStore::new(10)),
+            analysis_store: Arc::new(AnalysisStore::new()),
             settings,
         }
     }
@@ -290,18 +332,61 @@ impl SystemMonitor {
         Ok(())
     }
 
+    pub async fn run_analysis(&self, ollama: OllamaClient) -> Result<()> {
+        let mut interval = tokio::time::interval(Duration::from_secs(5));
+        loop {
+            interval.tick().await;
+
+            // Get latest process list
+            if let Some(processes) = self.process_store.get_recent(1).await.pop() {
+                // Convert to ProcessInfo for Ollama
+
+                // Get analysis from Ollama
+                match ollama.analyze_process_names(&processes).await {
+                    Ok(scores) => {
+                        // Store in analysis store instead of process store
+                        tracing::info!("Saving Scores");
+                        self.analysis_store.update(scores).await;
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to analyze processes: {}", e);
+                    }
+                }
+            }
+        }
+    }
+
     // API endpoint helper
     pub async fn get_latest_snapshot(&self) -> MonitorOutput {
-        
+        let processes = self
+            .process_store
+            .get_recent(1)
+            .await
+            .pop()
+            .unwrap_or_default();
+
+        // Enrich processes with analysis data
+        let mut enriched_processes = processes.clone();
+        for process in &mut enriched_processes {
+            if let Some(analysis) = self
+                .analysis_store
+                .get_analysis(process.parent_process.pid)
+                .await
+            {
+                tracing::info!("Updating process with threat score {:?}", process.parent_process);
+                process.parent_process.attributes.insert(
+                    crate::os_tooling::MetadataTags::ThreatScore,
+                    analysis.score.to_string(),
+                );
+                process.parent_process.attributes.insert(
+                    crate::os_tooling::MetadataTags::ThreatScoreReason,
+                    analysis.reason,
+                );
+            }
+        }
 
         MonitorOutput::new()
-            .with_processes(
-                self.process_store
-                    .get_recent(1)
-                    .await
-                    .pop()
-                    .unwrap_or_default(),
-            )
+            .with_processes(enriched_processes)
             .with_cpu(self.cpu_store.get_recent(1).await.pop().unwrap_or_default())
             .with_memory(
                 self.memory_store
@@ -327,7 +412,6 @@ impl SystemMonitor {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -336,7 +420,7 @@ mod tests {
     #[test]
     async fn test_metric_store_basic_operations() {
         let store = MetricStore::<i32>::new(10); // 10 second TTL
-        
+
         // Test storing and retrieving
         store.store("test_metric", 42).await;
         let recent = store.get_recent(1).await;
@@ -347,14 +431,13 @@ mod tests {
     #[test]
     async fn test_metric_store_ttl() {
         let store = MetricStore::<String>::new(1); // 1 second TTL
-        
+
         store.store("test_metric", "data".to_string()).await;
         tokio::time::sleep(Duration::from_secs(2)).await;
-        
+
         let recent = store.get_recent(1).await;
         assert_eq!(recent.len(), 0, "Store should be empty after TTL");
     }
-
 
     #[test]
     async fn test_monitor_output_builder() {

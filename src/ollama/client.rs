@@ -14,6 +14,7 @@ use super::{
 };
 use anyhow::{anyhow, Context, Result};
 
+#[derive(Clone)]
 pub struct OllamaClient {
     pub client: Client,
     pub settings: Settings,
@@ -54,7 +55,7 @@ impl OllamaClient {
         self.analyze_process_names(&output.processes).await
     }
 
-    async fn analyze_process_names(
+    pub async fn analyze_process_names(
         &self,
         processess: &Vec<OsProcessGroup>,
     ) -> Result<Vec<ProcessScore>> {
@@ -88,8 +89,18 @@ impl OllamaClient {
             },
         };
         let resp = self.make_generate_request(request_body).await?;
-
-        let scores: Vec<ProcessScore> = serde_json::from_str(&resp.response)
+        let json_str = if resp.response.contains("```json") {
+            resp.response
+                .split("```json")  // Split on ```json
+                .nth(1)            // Take everything after ```json
+                .and_then(|s| s.split("```").next())  // Take everything before the next ```
+                .ok_or_else(|| anyhow!("Failed to extract JSON from response"))?
+                .trim()
+        } else {
+            // Fallback - maybe the model just returned raw JSON
+            resp.response.trim()
+        };
+        let scores: Vec<ProcessScore> = serde_json::from_str(json_str)
             .context("Failed to parse LLM response as ProcessScore array")?;
         Ok(scores)
     }

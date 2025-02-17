@@ -102,11 +102,18 @@ impl OllamaAgentOutput {
 }
 
 
+// We might also want to add an input struct:
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProcessInfo {
+    pub pid: u32,
+    pub name: String,
+}
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProcessScore {
-    pid: u32,
-    name: String,
-    score: u8,
-    reason: String,
+    pub pid: u32,
+    pub name: String,
+    pub score: u8,
+    pub reason: String,
 }

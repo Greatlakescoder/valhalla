@@ -15,4 +15,6 @@ pub enum MetadataTags {
     HighCpu,
     HighMemory,
     MemoryUsage,
+    ThreatScore,
+    ThreatScoreReason,
 }

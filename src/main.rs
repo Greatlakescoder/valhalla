@@ -1,14 +1,9 @@
 use clap::Parser;
 use odin::{
-    cache::Cache,
-    configuration::get_configuration,
-    monitor::SystemMonitor,
-    os_tooling::process::OsProcessGroup,
-    telemetry::{get_subscriber, init_subscriber},
-    web::app::start_server,
+    cache::Cache, configuration::get_configuration, monitor::SystemMonitor, ollama::OllamaClient, os_tooling::process::OsProcessGroup, telemetry::{get_subscriber, init_subscriber}, web::app::start_server
 };
 
-use std::{error::Error, sync::Arc};
+use std::{error::Error, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 
 #[derive(Parser, Debug)]
@@ -53,6 +48,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
         loop {
             tracing::info!("Web Server running");
             start_server(web_monitor.clone()).await;
+        }
+    });
+    let ollama = OllamaClient::new(settings.clone());
+    let monitor_clone = monitor.clone();
+    tokio::spawn(async move {
+        tracing::info!("Ollama analysis started");
+        loop {
+            match monitor_clone.run_analysis(ollama.clone()).await {
+                Ok(_) => {
+                    tracing::info!("Ollama analysis completed successfully");
+                }
+                Err(e) => {
+                    tracing::error!("Ollama analysis failed: {}", e);
+                    // Add a small delay before retrying to prevent spam
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                }
+            }
         }
     });
 

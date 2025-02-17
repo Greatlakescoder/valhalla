@@ -9,28 +9,57 @@ import {
     Legend,
     ResponsiveContainer,
 } from 'recharts';
-import { ChevronDown, ChevronRight, Cpu, Database, HardDrive, Network } from "lucide-react";
+import { ChevronDown, ChevronRight, Cpu, Database, HardDrive, Network, ShieldAlert } from "lucide-react";
 
-const ProcessRow = ({ process, isParent }) => (
-    <div className={`p-4 w-full ${isParent ? 'bg-slate-800' : 'bg-slate-900'} border-b border-slate-700 hover:bg-slate-700 transition-colors`}>
-        <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-2">
-                <span className="font-mono text-slate-200">{process.name}</span>
-                <span className="text-slate-400 font-mono">PID:{process.pid}</span>
-            </div>
-            <div className="flex items-center gap-4 font-mono">
-                <div className="flex items-center gap-1">
-                    <Cpu className="h-4 w-4 text-sky-400" />
-                    <span className="text-slate-200">{process.attributes?.CpuUsage || '0'}%</span>
+const ProcessRow = ({ process, isParent }) => {
+    const getThreatColor = (score) => {
+        if (!score) return '';
+        const numScore = parseInt(score);
+        if (numScore <= 20) return 'border-l-4 border-l-green-500';
+        if (numScore <= 40) return 'border-l-4 border-l-blue-500';
+        if (numScore <= 60) return 'border-l-4 border-l-yellow-500';
+        if (numScore <= 80) return 'border-l-4 border-l-orange-500';
+        return 'border-l-4 border-l-red-500';
+    };
+
+    // Update to match exact attribute names
+    const threatScore = process.attributes?.ThreatScore;
+    const threatReason = process.attributes?.ThreatScoreReason;
+
+    return (
+        <div className={`p-4 w-full ${isParent ? 'bg-slate-800' : 'bg-slate-900'} 
+            ${getThreatColor(threatScore)} border-b border-slate-700 
+            hover:bg-slate-700 transition-colors`}>
+            <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                    <span className="font-mono text-slate-200">{process.name}</span>
+                    <span className="text-slate-400 font-mono">PID:{process.pid}</span>
+                    {threatScore && (
+                        <span className="text-slate-400 font-mono bg-slate-700 px-2 py-1 rounded-md text-sm">
+                            Score: {threatScore}
+                        </span>
+                    )}
                 </div>
-                <div className="flex items-center gap-1">
-                    <Database className="h-4 w-4 text-indigo-400" />
-                    <span className="text-slate-200">{process.attributes?.MemoryUsage || '0'}MB</span>
+                <div className="flex items-center gap-4 font-mono">
+                    <div className="flex items-center gap-1">
+                        <Cpu className="h-4 w-4 text-sky-400" />
+                        <span className="text-slate-200">{process.attributes?.CpuUsage || '0'}%</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <Database className="h-4 w-4 text-indigo-400" />
+                        <span className="text-slate-200">{process.attributes?.MemoryUsage || '0'}MB</span>
+                    </div>
+                    {parseInt(threatScore) > 60 && (
+                        <div className="flex items-center gap-1">
+                            <ShieldAlert className="h-4 w-4 text-red-400" />
+                            <span className="text-slate-200 text-sm">{threatReason}</span>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 const MetricCard = ({ title, icon: Icon, value, subValue, color }) => (
     <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
